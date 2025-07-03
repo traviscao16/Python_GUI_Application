@@ -5,6 +5,7 @@ import pandas as pd
 import tkinter as tk
 from tkinter import filedialog, messagebox, scrolledtext, ttk
 import threading
+import bs4
 
 # Global variables
 session = None
@@ -67,52 +68,82 @@ def get_lot_history():
         soup = BeautifulSoup(response.text, 'html.parser')
         table = soup.find('table', {'id': 'MainContent_gridview'})
 
-        if table:
-            headers_row = [th.get_text().strip() for th in table.find('thead').find_all('th')]
-            rows = []
-            for tr in table.find('tbody').find_all('tr'):
-                cells = tr.find_all('td')
-                row = {headers_row[j]: cells[j].get_text().strip() for j in range(len(cells))}
-                rows.append(row)
+        if isinstance(table, bs4.element.Tag):
+            thead = table.find('thead')
+            tbody = table.find('tbody')
+            if isinstance(thead, bs4.element.Tag) and isinstance(tbody, bs4.element.Tag):
+                headers_row = [th.get_text().strip() for th in thead.find_all('th') if isinstance(th, bs4.element.Tag)]
+                rows = []
+                for tr in tbody.find_all('tr'):
+                    if not isinstance(tr, bs4.element.Tag):
+                        continue
+                    cells = [td for td in tr.find_all('td') if isinstance(td, bs4.element.Tag)]
+                    row = {headers_row[j]: cells[j].get_text().strip() for j in range(len(cells))}
+                    rows.append(row)
 
-            df = pd.DataFrame(rows)
-            df['LotID'] = lot_id
-            filtered = df[df['Transaction'].isin(['CreateFirstInsertion', 'TrackInLot', 'TrackOutLot', 'HoldLot', 'RejectLot'])]
+                df = pd.DataFrame(rows)
+                df['LotID'] = lot_id
+                if not isinstance(df, pd.DataFrame):
+                    console_output.insert(tk.END, f"Data extraction error for LotID: {lot_id}\n")
+                    continue
+                filtered = df[df['Transaction'].isin(['CreateFirstInsertion', 'TrackInLot', 'TrackOutLot', 'HoldLot', 'RejectLot'])]
 
-            if not filtered.empty:
-                pivot = filtered.pivot_table(index=['LotID', 'Process Step'], columns='Transaction', values='Txn. Date', aggfunc='first').reset_index()
+                if not filtered.empty:
+                    pivot = filtered.pivot_table(index=['LotID', 'Process Step'], columns='Transaction', values='Txn. Date', aggfunc='first').reset_index()
 
-                # Parse datetime columns (do not format to string)
-                for col in ['CreateFirstInsertion', 'TrackInLot', 'TrackOutLot', 'HoldLot']:
-                    if col in pivot.columns and not pd.api.types.is_datetime64_any_dtype(pivot[col]):
-                        pivot[col] = pd.to_datetime(pivot[col], format='%m/%d/%Y %I:%M:%S %p', errors='coerce')
+                    # Parse datetime columns (do not format to string)
+                    for col in ['CreateFirstInsertion', 'TrackInLot', 'TrackOutLot', 'HoldLot']:
+                        if col in pivot.columns and not pd.api.types.is_datetime64_any_dtype(pivot[col]):
+                            pivot[col] = pd.to_datetime(pivot[col], format='%m/%d/%Y %I:%M:%S %p', errors='coerce')
 
-                # Add equipment info
-                trackin = filtered[filtered['Transaction'] == 'TrackInLot'].groupby(['LotID', 'Process Step'])['Equipment'].first().reset_index(name='TrackIn_machine')
-                trackout = filtered[filtered['Transaction'] == 'TrackOutLot'].groupby(['LotID', 'Process Step'])['Equipment'].first().reset_index(name='TrackOut_machine')
-                pivot = pivot.merge(trackin, on=['LotID', 'Process Step'], how='left')
-                pivot = pivot.merge(trackout, on=['LotID', 'Process Step'], how='left')
+                    # Add equipment info
+                    if isinstance(filtered, pd.DataFrame):
+                        trackin = filtered[filtered['Transaction'] == 'TrackInLot'].groupby(['LotID', 'Process Step'])['Equipment'].first().reset_index()
+                        trackin = trackin.rename(columns={'Equipment': 'TrackIn_machine'})
+                        trackout = filtered[filtered['Transaction'] == 'TrackOutLot'].groupby(['LotID', 'Process Step'])['Equipment'].first().reset_index()
+                        trackout = trackout.rename(columns={'Equipment': 'TrackOut_machine'})
+                        pivot = pivot.merge(trackin, on=['LotID', 'Process Step'], how='left')
+                        pivot = pivot.merge(trackout, on=['LotID', 'Process Step'], how='left')
 
-                # Add reject and quantity info
-                reject_data = df[df['Transaction'] == 'RejectLot'][['LotID', 'Process Step', 'From Qty', 'To Qty']]
-                reject_data = reject_data.rename(columns={'From Qty': 'Reject_From_Qty', 'To Qty': 'Reject_To_Qty'})
-                pivot = pivot.merge(reject_data, on=['LotID', 'Process Step'], how='left')
+                    # Add reject and quantity info
+                    if isinstance(df, pd.DataFrame):
+                        reject_data = df[df['Transaction'] == 'RejectLot'][['LotID', 'Process Step', 'From Qty', 'To Qty']]
+                        if isinstance(reject_data, pd.DataFrame):
+                            reject_data = reject_data.rename(columns={'From Qty': 'Reject_From_Qty', 'To Qty': 'Reject_To_Qty'})
+                            pivot = pivot.merge(reject_data, on=['LotID', 'Process Step'], how='left')
 
-                trackout_qty = df[df['Transaction'] == 'TrackOutLot'][['LotID', 'Process Step', 'From Qty', 'To Qty']]
-                trackout_qty = trackout_qty.rename(columns={'From Qty': 'In_Qty', 'To Qty': 'Out_Qty'})
-                pivot = pivot.merge(trackout_qty, on=['LotID', 'Process Step'], how='left')
+                        trackout_qty = df[df['Transaction'] == 'TrackOutLot'][['LotID', 'Process Step', 'From Qty', 'To Qty']]
+                        if isinstance(trackout_qty, pd.DataFrame):
+                            trackout_qty = trackout_qty.rename(columns={'From Qty': 'In_Qty', 'To Qty': 'Out_Qty'})
+                            pivot = pivot.merge(trackout_qty, on=['LotID', 'Process Step'], how='left')
 
-                pivot['Reject_Qty'] = (
-                    pd.to_numeric(pivot['In_Qty'], errors='coerce').fillna(0)
-                    - pd.to_numeric(pivot['Out_Qty'], errors='coerce').fillna(0)
-                ).astype(int)
+                    # Ensure In_Qty and Out_Qty are Series before fillna
+                    if not isinstance(pivot['In_Qty'], pd.Series):
+                        in_qty = pd.Series(pivot['In_Qty'])
+                    else:
+                        in_qty = pivot['In_Qty']
+                    if not isinstance(pivot['Out_Qty'], pd.Series):
+                        out_qty = pd.Series(pivot['Out_Qty'])
+                    else:
+                        out_qty = pivot['Out_Qty']
+                    in_qty = pd.to_numeric(in_qty, errors='coerce')
+                    if not isinstance(in_qty, pd.Series):
+                        in_qty = pd.Series(in_qty)
+                    in_qty = in_qty.fillna(0).astype(float)
+                    out_qty = pd.to_numeric(out_qty, errors='coerce')
+                    if not isinstance(out_qty, pd.Series):
+                        out_qty = pd.Series(out_qty)
+                    out_qty = out_qty.fillna(0).astype(float)
+                    pivot['Reject_Qty'] = (in_qty - out_qty).astype(int)
 
-                if 'RejectLot' in pivot.columns:
-                    pivot.drop(columns=['RejectLot'], inplace=True)
+                    if 'RejectLot' in pivot.columns:
+                        pivot.drop(columns=['RejectLot'], inplace=True)
 
-                all_data.append(pivot)
+                    all_data.append(pivot)
+                else:
+                    console_output.insert(tk.END, f"No table found for LotID: {lot_id}\n")
             else:
-                console_output.insert(tk.END, f"No table found for LotID: {lot_id}\n")
+                console_output.insert(tk.END, f"Table structure missing thead or tbody for LotID: {lot_id}\n")
 
     if all_data:
         final_df = pd.concat(all_data, ignore_index=True)
@@ -129,7 +160,7 @@ def threaded_get_lot_history():
     threading.Thread(target=get_lot_history).start()
 
 def export_to_csv():
-    if filtered_df.empty:
+    if not isinstance(filtered_df, pd.DataFrame) or filtered_df.empty:
         messagebox.showerror("Error", "No data to export.")
         return
     output_file = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV files", "*.csv")])
@@ -151,10 +182,23 @@ def update_treeview(df):
             if 'Reject_To_Qty' in display_df.columns and pd.notnull(row.get('Reject_To_Qty')):
                 display_df.at[idx, 'Out_Qty'] = row['Reject_To_Qty']
         # Recalculate Reject_Qty
-        display_df['Reject_Qty'] = (
-            pd.to_numeric(display_df['In_Qty'], errors='coerce').fillna(0).astype(int)
-            - pd.to_numeric(display_df['Out_Qty'], errors='coerce').fillna(0).astype(int)
-        )
+        if not isinstance(display_df['In_Qty'], pd.Series):
+            in_qty = pd.Series(display_df['In_Qty'])
+        else:
+            in_qty = display_df['In_Qty']
+        if not isinstance(display_df['Out_Qty'], pd.Series):
+            out_qty = pd.Series(display_df['Out_Qty'])
+        else:
+            out_qty = display_df['Out_Qty']
+        in_qty = pd.to_numeric(in_qty, errors='coerce')
+        if not isinstance(in_qty, pd.Series):
+            in_qty = pd.Series(in_qty)
+        in_qty = in_qty.fillna(0).astype(float)
+        out_qty = pd.to_numeric(out_qty, errors='coerce')
+        if not isinstance(out_qty, pd.Series):
+            out_qty = pd.Series(out_qty)
+        out_qty = out_qty.fillna(0).astype(float)
+        display_df['Reject_Qty'] = (in_qty - out_qty).astype(int)
         # Drop the Reject_From_Qty and Reject_To_Qty columns for display
         display_df = display_df.drop(columns=['Reject_From_Qty', 'Reject_To_Qty'], errors='ignore')
 
@@ -184,7 +228,8 @@ def update_treeview(df):
             sort_state.insert(0, (col, True))
         sort_by = [col for col, _ in sort_state]
         ascending = [asc for _, asc in sort_state]
-        filtered_df = filtered_df.sort_values(by=sort_by, ascending=ascending)
+        if isinstance(filtered_df, pd.DataFrame):
+            filtered_df = filtered_df.sort_values(by=sort_by, ascending=ascending)
         update_treeview(filtered_df)
 
     # Set column headers and widths
@@ -229,7 +274,10 @@ def search_table():
     for col, entry in filter_entries.items():
         val = entry.get().strip().lower()
         if val:
-            df = df[df[col].astype(str).str.lower().str.contains(val)]
+            col_series = df[col] if isinstance(df[col], pd.Series) else pd.Series(df[col])
+            if not isinstance(col_series, pd.Series):
+                col_series = pd.Series(col_series)
+            df = df[col_series.astype(str).str.lower().str.contains(val)]
     filtered_df = df
     update_treeview(filtered_df)
 
