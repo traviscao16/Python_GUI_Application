@@ -7,7 +7,7 @@ import os
 
 # Grouped scripts: {Group Name: {App Name: Script Path}}
 SCRIPT_GROUPS = {
-    'Leadframe Attach': {
+    'LF Attach': {
         'LF History': 'LF_history.py',
     },
     'Reflow': {
@@ -15,7 +15,9 @@ SCRIPT_GROUPS = {
     },
     'Xray': {
         'Void Data from DB': 'Void_data_fromDB.py',
+        'Void Data': 'Void_data_from.py',
     },
+    
     # Add more groups here as needed:
     # 'New Group Name': {
     #     'App Name': 'script_file.py',
