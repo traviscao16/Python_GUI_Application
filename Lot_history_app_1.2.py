@@ -151,7 +151,10 @@ def update_treeview(df):
             if 'Reject_To_Qty' in display_df.columns and pd.notnull(row.get('Reject_To_Qty')):
                 display_df.at[idx, 'Out_Qty'] = row['Reject_To_Qty']
         # Recalculate Reject_Qty
-        display_df['Reject_Qty'] = pd.to_numeric(display_df['In_Qty'], errors='coerce') - pd.to_numeric(display_df['Out_Qty'], errors='coerce')
+        display_df['Reject_Qty'] = (
+            pd.to_numeric(display_df['In_Qty'], errors='coerce').fillna(0).astype(int)
+            - pd.to_numeric(display_df['Out_Qty'], errors='coerce').fillna(0).astype(int)
+        )
         # Drop the Reject_From_Qty and Reject_To_Qty columns for display
         display_df = display_df.drop(columns=['Reject_From_Qty', 'Reject_To_Qty'], errors='ignore')
 
@@ -160,6 +163,9 @@ def update_treeview(df):
     for col in datetime_columns:
         if col in display_df.columns and pd.api.types.is_datetime64_any_dtype(display_df[col]):
             display_df[col] = display_df[col].dt.strftime('%d/%m/%Y %H:%M:%S')
+
+    # Add index as the first column for display
+    display_df.insert(0, 'Index', range(1, len(display_df) + 1))
 
     # Clear existing rows
     tree.delete(*tree.get_children())
@@ -190,6 +196,20 @@ def update_treeview(df):
     for _, row in display_df.iterrows():
         tree.insert("", "end", values=list(row))
 
+    # Enable copying selected rows to clipboard
+    def copy_selected(event=None):
+        selected_items = tree.selection()
+        if not selected_items:
+            return
+        rows = []
+        for item in selected_items:
+            row = tree.item(item)['values']
+            rows.append('\t'.join(str(cell) for cell in row))
+        root.clipboard_clear()
+        root.clipboard_append('\n'.join(rows))
+
+    tree.bind('<Control-c>', copy_selected)
+    tree.bind('<Control-C>', copy_selected)
 
 def apply_filters():
     global filtered_df
