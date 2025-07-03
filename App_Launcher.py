@@ -1,5 +1,6 @@
-import tkinter as tk
-from tkinter import messagebox, ttk
+# Requires: pip install ttkbootstrap
+import ttkbootstrap as ttkb
+from tkinter import messagebox
 import subprocess
 import sys
 import os
@@ -31,22 +32,22 @@ def launch_script(script_path, app_name):
         messagebox.showerror('Error', f'Failed to launch {app_name}:\n{e}')
 
 # GUI setup
-root = tk.Tk()
+root = ttkb.Window(themename="darkly")  # Try "darkly", "superhero", etc.
 root.title('Python GUI App Launcher')
 root.geometry('400x350')
 
-label = tk.Label(root, text='Select an App to Launch:', font=('Arial', 14))
+label = ttkb.Label(root, text='Select an App to Launch:', font=('Arial', 14, 'bold'))
 label.pack(pady=10)
 
-notebook = ttk.Notebook(root)
+notebook = ttkb.Notebook(root, bootstyle="secondary")
 notebook.pack(fill='both', expand=True, padx=10, pady=10)
 
 for group, scripts in SCRIPT_GROUPS.items():
-    frame = tk.Frame(notebook)
+    frame = ttkb.Frame(notebook)
     notebook.add(frame, text=group)
     for app_name, script_path in scripts.items():
-        btn = tk.Button(frame, text=app_name, font=('Arial', 12), width=30,
-                        command=lambda sp=script_path, an=app_name: launch_script(sp, an))
+        btn = ttkb.Button(frame, text=app_name, bootstyle="primary", width=30,
+                          command=lambda sp=script_path, an=app_name: launch_script(sp, an))
         btn.pack(pady=8)
 
 root.mainloop()
