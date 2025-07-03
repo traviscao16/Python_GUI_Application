@@ -103,9 +103,9 @@ def get_lot_history():
                 pivot = pivot.merge(trackout_qty, on=['LotID', 'Process Step'], how='left')
 
                 pivot['Reject_Qty'] = (
-                    pd.to_numeric(pivot['In_Qty'], errors='coerce').fillna(0).astype(int)
-                    - pd.to_numeric(pivot['Out_Qty'], errors='coerce').fillna(0).astype(int)
-                )
+                    pd.to_numeric(pivot['In_Qty'], errors='coerce').fillna(0)
+                    - pd.to_numeric(pivot['Out_Qty'], errors='coerce').fillna(0)
+                ).astype(int)
 
                 if 'RejectLot' in pivot.columns:
                     pivot.drop(columns=['RejectLot'], inplace=True)
@@ -243,8 +243,10 @@ def check_current_process():
     # Just call update_treeview with filtered_df — it will format for display
     update_treeview(filtered_df)
 
-
-
+def clear_view():
+    global filtered_df
+    filtered_df = result_df.copy()
+    update_treeview(filtered_df)
 
 # GUI Setup
 root = tk.Tk()
@@ -286,6 +288,7 @@ action_frame.pack(pady=5)
 tk.Button(action_frame, text="Get Lot History", command=threaded_get_lot_history).grid(row=0, column=0, padx=5)
 tk.Button(action_frame, text="Export to CSV", command=export_to_csv).grid(row=0, column=1, padx=5)
 tk.Button(action_frame, text="Check Current Process", command=check_current_process).grid(row=1, column=0, columnspan=2, pady=5)
+tk.Button(action_frame, text="Clear View", command=clear_view).grid(row=2, column=0, columnspan=2, pady=5)
 
 console_output = scrolledtext.ScrolledText(left_frame, width=35, height=10)
 console_output.pack(pady=5)
