@@ -262,6 +262,10 @@ def update_treeview(df):
     tree.bind('<Control-c>', copy_selected)
     tree.bind('<Control-C>', copy_selected)
 
+    # After tree and scrollbars are set up, add a Copy Selected button below the Treeview
+    copy_btn = tk.Button(tree_frame, text="Copy Selected", command=lambda: copy_selected())
+    copy_btn.grid(row=2, column=0, columnspan=2, sticky="ew", pady=5)
+
 def apply_filters():
     global filtered_df
     df = result_df.copy()
