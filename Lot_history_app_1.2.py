@@ -271,7 +271,9 @@ def clear_view():
 # GUI Setup
 root = tk.Tk()
 root.title("Lot History")
-root.geometry("1200x800")
+root.state('zoomed')  # Open the app in full screen (Windows)
+#root.geometry("1200x800")
+#root.attributes('-fullscreen', True)  # Alternative for true fullscreen (uncomment if needed)
 
 main_frame = tk.Frame(root)
 main_frame.pack(fill=tk.BOTH, expand=True)
