@@ -328,13 +328,22 @@ for step in process_steps:
     cb.pack(anchor='w')
     checkbox_vars[step] = var
 
-tree = ttk.Treeview(right_frame)
-tree.pack(fill=tk.BOTH, expand=True)
-vsb = ttk.Scrollbar(right_frame, orient="vertical", command=tree.yview)
-hsb = ttk.Scrollbar(right_frame, orient="horizontal", command=tree.xview)
+# Treeview with scrollbars inside a frame
+tree_frame = tk.Frame(right_frame)
+tree_frame.pack(fill=tk.BOTH, expand=True)
+
+tree = ttk.Treeview(tree_frame)
+tree.grid(row=0, column=0, sticky="nsew")
+
+vsb = ttk.Scrollbar(tree_frame, orient="vertical", command=tree.yview)
+vsb.grid(row=0, column=1, sticky="ns")
+hsb = ttk.Scrollbar(tree_frame, orient="horizontal", command=tree.xview)
+hsb.grid(row=1, column=0, sticky="ew")
+
 tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
-vsb.pack(side='right', fill='y')
-hsb.pack(side='bottom', fill='x')
+
+tree_frame.rowconfigure(0, weight=1)
+tree_frame.columnconfigure(0, weight=1)
 
 root.mainloop()
 # Ensure the script runs only if executed directly
