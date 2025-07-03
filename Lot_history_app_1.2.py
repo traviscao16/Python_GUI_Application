@@ -140,6 +140,18 @@ def update_treeview(df):
     # Create a copy for display formatting
     display_df = df.copy()
 
+    # Replace In_Qty and Out_Qty with Reject_From_Qty and Reject_To_Qty if present
+    if 'Reject_From_Qty' in display_df.columns or 'Reject_To_Qty' in display_df.columns:
+        for idx, row in display_df.iterrows():
+            if 'Reject_From_Qty' in display_df.columns and pd.notnull(row.get('Reject_From_Qty')):
+                display_df.at[idx, 'In_Qty'] = row['Reject_From_Qty']
+            if 'Reject_To_Qty' in display_df.columns and pd.notnull(row.get('Reject_To_Qty')):
+                display_df.at[idx, 'Out_Qty'] = row['Reject_To_Qty']
+        # Recalculate Reject_Qty
+        display_df['Reject_Qty'] = pd.to_numeric(display_df['In_Qty'], errors='coerce') - pd.to_numeric(display_df['Out_Qty'], errors='coerce')
+        # Drop the Reject_From_Qty and Reject_To_Qty columns for display
+        display_df = display_df.drop(columns=['Reject_From_Qty', 'Reject_To_Qty'], errors='ignore')
+
     # Format datetime columns for display (you can add more columns if needed)
     datetime_columns = ['CreateFirstInsertion', 'TrackInLot', 'TrackOutLot']
     for col in datetime_columns:
@@ -234,6 +246,7 @@ def check_current_process():
 # GUI Setup
 root = tk.Tk()
 root.title("Lot History")
+root.geometry("1200x800")
 
 main_frame = tk.Frame(root)
 main_frame.pack(fill=tk.BOTH, expand=True)
@@ -298,3 +311,4 @@ vsb.pack(side='right', fill='y')
 hsb.pack(side='bottom', fill='x')
 
 root.mainloop()
+# Ensure the script runs only if executed directly
