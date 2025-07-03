@@ -102,7 +102,10 @@ def get_lot_history():
                 trackout_qty = trackout_qty.rename(columns={'From Qty': 'In_Qty', 'To Qty': 'Out_Qty'})
                 pivot = pivot.merge(trackout_qty, on=['LotID', 'Process Step'], how='left')
 
-                pivot['Reject_Qty'] = pd.to_numeric(pivot['In_Qty'], errors='coerce') - pd.to_numeric(pivot['Out_Qty'], errors='coerce')
+                pivot['Reject_Qty'] = (
+                    pd.to_numeric(pivot['In_Qty'], errors='coerce').fillna(0).astype(int)
+                    - pd.to_numeric(pivot['Out_Qty'], errors='coerce').fillna(0).astype(int)
+                )
 
                 if 'RejectLot' in pivot.columns:
                     pivot.drop(columns=['RejectLot'], inplace=True)
