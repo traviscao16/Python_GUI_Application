@@ -246,13 +246,19 @@ def update_treeview(df):
         selected_items = tree.selection()
         if not selected_items:
             return
-        rows = []
+        # Get column headers
+        headers = [tree.heading(col)["text"] for col in tree["columns"]]
+        rows = ['\t'.join(headers)]
         for item in selected_items:
             row = tree.item(item)['values']
-            rows.append('\t'.join(str(cell) for cell in row))
+            row_str = [str(cell) if cell is not None else '' for cell in row]
+            rows.append('\t'.join(row_str))
         root.clipboard_clear()
         root.clipboard_append('\n'.join(rows))
 
+    # Unbind previous bindings to avoid duplicate bindings
+    tree.unbind('<Control-c>')
+    tree.unbind('<Control-C>')
     tree.bind('<Control-c>', copy_selected)
     tree.bind('<Control-C>', copy_selected)
 
