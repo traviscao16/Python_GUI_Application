@@ -247,7 +247,6 @@ def update_treeview(df):
         selected_items = tree.selection()
         if not selected_items:
             return
-        # Get column headers
         headers = [tree.heading(col)["text"] for col in tree["columns"]]
         rows = ['\t'.join(headers)]
         for item in selected_items:
@@ -256,6 +255,10 @@ def update_treeview(df):
             rows.append('\t'.join(row_str))
         root.clipboard_clear()
         root.clipboard_append('\n'.join(rows))
+
+    def select_all(event=None):
+        tree.selection_set(tree.get_children())
+        return "break"
 
     # Button beside Clear View
     # (This replaces the previous lambda: copy_selected())
@@ -267,6 +270,8 @@ def update_treeview(df):
     tree.unbind('<Control-C>')
     tree.bind('<Control-c>', copy_selected)
     tree.bind('<Control-C>', copy_selected)
+    tree.bind('<Control-a>', select_all)
+    tree.bind('<Control-A>', select_all)
 
 def apply_filters():
     global filtered_df
