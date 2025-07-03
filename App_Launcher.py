@@ -17,6 +17,10 @@ SCRIPT_GROUPS = {
         'Void Data from DB': 'Void_data_fromDB.py',
         'Void Data': 'Void_data_from.py',
     },
+    'Lot tracking': {
+        'Lot History': 'Lot_history_app_1.2.py',
+        
+    },
     
     # Add more groups here as needed:
     # 'New Group Name': {
