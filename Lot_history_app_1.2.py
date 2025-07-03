@@ -241,7 +241,8 @@ def update_treeview(df):
     for _, row in display_df.iterrows():
         tree.insert("", "end", values=list(row))
 
-    # Enable copying selected rows to clipboard
+    # After tree is created and before GUI mainloop, define copy_selected globally
+
     def copy_selected(event=None):
         selected_items = tree.selection()
         if not selected_items:
@@ -256,15 +257,12 @@ def update_treeview(df):
         root.clipboard_clear()
         root.clipboard_append('\n'.join(rows))
 
-    # Unbind previous bindings to avoid duplicate bindings
+    # Rebind Ctrl+C to the global copy_selected
+
     tree.unbind('<Control-c>')
     tree.unbind('<Control-C>')
     tree.bind('<Control-c>', copy_selected)
     tree.bind('<Control-C>', copy_selected)
-
-    # After tree and scrollbars are set up, add a Copy Selected button below the Treeview
-    copy_btn = tk.Button(tree_frame, text="Copy Selected", command=lambda: copy_selected())
-    copy_btn.grid(row=2, column=0, columnspan=2, sticky="ew", pady=5)
 
 def apply_filters():
     global filtered_df
@@ -368,7 +366,8 @@ action_frame.pack(pady=5)
 tk.Button(action_frame, text="Get Lot History", command=threaded_get_lot_history).grid(row=0, column=0, padx=5)
 tk.Button(action_frame, text="Export to CSV", command=export_to_csv).grid(row=0, column=1, padx=5)
 tk.Button(action_frame, text="Check Current Process", command=check_current_process).grid(row=1, column=0, columnspan=2, pady=5)
-tk.Button(action_frame, text="Clear View", command=clear_view).grid(row=2, column=0, columnspan=2, pady=5)
+tk.Button(action_frame, text="Clear View", command=clear_view).grid(row=2, column=0, padx=5, pady=5)
+tk.Button(action_frame, text="Copy Selected", command=lambda: copy_selected()).grid(row=2, column=1, padx=5, pady=5)
 
 console_output = scrolledtext.ScrolledText(left_frame, width=35, height=10)
 console_output.pack(pady=5)
