@@ -76,7 +76,7 @@ def get_lot_history():
             console_output.insert(tk.END, f"Error fetching {lot_id}: {e}\n")
             continue
 
-        time.sleep(0.3)  # Delay to avoid rate-limiting
+        time.sleep(0.1)  # Delay to avoid rate-limiting
 
         soup = BeautifulSoup(response.text, 'html.parser')
         table = soup.find('table', {'id': 'MainContent_gridview'})
@@ -197,7 +197,7 @@ def update_treeview(df):
         out_qty = out_qty.fillna(0).astype(float)
         display_df['Reject_Qty'] = (in_qty - out_qty).astype(int)
         # Drop the Reject_From_Qty and Reject_To_Qty columns for display
-        display_df = display_df.drop(columns=['Reject_From_Qty', 'Reject_To_Qty'], errors='ignore')
+        display_df = display_df.drop(columns=['Reject_From_Qty', 'Reject_To_Qty','TrackOut_machine'], errors='ignore')
 
     # Format datetime columns for display (you can add more columns if needed)
     datetime_columns = ['CreateFirstInsertion', 'TrackInLot', 'TrackOutLot']
