@@ -6,6 +6,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, scrolledtext, ttk
 import threading
 import bs4
+import time
 
 # Global variables
 session = None
@@ -58,12 +59,24 @@ def get_lot_history():
         root.update_idletasks()
 
         url = f"http://bhvnbiprd/CamstarLotTracking/Forms/ShopOrder/DetailedLotHistory?lotID={lot_id}"
+        headers = {"User-Agent": "Edg/137.0.0.0"}
+
         try:
-            response = session.get(url, headers={"User-Agent": "Edg/137.0.0.0"}, timeout=10)
+            response = session.get(url, headers=headers, timeout=10)
+            if response.status_code == 401:
+                console_output.insert(tk.END, f"Session expired. Re-authenticating for LotID: {lot_id}...\n")
+                login()
+                if not session:
+                    console_output.insert(tk.END, "Re-login failed.\n")
+                    continue
+                response = session.get(url, headers=headers, timeout=10)
+
             response.raise_for_status()
         except requests.RequestException as e:
             console_output.insert(tk.END, f"Error fetching {lot_id}: {e}\n")
             continue
+
+        time.sleep(0.3)  # Delay to avoid rate-limiting
 
         soup = BeautifulSoup(response.text, 'html.parser')
         table = soup.find('table', {'id': 'MainContent_gridview'})
@@ -86,17 +99,16 @@ def get_lot_history():
                 if not isinstance(df, pd.DataFrame):
                     console_output.insert(tk.END, f"Data extraction error for LotID: {lot_id}\n")
                     continue
+
                 filtered = df[df['Transaction'].isin(['CreateFirstInsertion', 'TrackInLot', 'TrackOutLot', 'HoldLot', 'RejectLot'])]
 
                 if not filtered.empty:
                     pivot = filtered.pivot_table(index=['LotID', 'Process Step'], columns='Transaction', values='Txn. Date', aggfunc='first').reset_index()
 
-                    # Parse datetime columns (do not format to string)
                     for col in ['CreateFirstInsertion', 'TrackInLot', 'TrackOutLot', 'HoldLot']:
                         if col in pivot.columns and not pd.api.types.is_datetime64_any_dtype(pivot[col]):
                             pivot[col] = pd.to_datetime(pivot[col], format='%m/%d/%Y %I:%M:%S %p', errors='coerce')
 
-                    # Add equipment info
                     if isinstance(filtered, pd.DataFrame):
                         trackin = filtered[filtered['Transaction'] == 'TrackInLot'].groupby(['LotID', 'Process Step'])['Equipment'].first().reset_index()
                         trackin = trackin.rename(columns={'Equipment': 'TrackIn_machine'})
@@ -105,7 +117,6 @@ def get_lot_history():
                         pivot = pivot.merge(trackin, on=['LotID', 'Process Step'], how='left')
                         pivot = pivot.merge(trackout, on=['LotID', 'Process Step'], how='left')
 
-                    # Add reject and quantity info
                     if isinstance(df, pd.DataFrame):
                         reject_data = df[df['Transaction'] == 'RejectLot'][['LotID', 'Process Step', 'From Qty', 'To Qty']]
                         if isinstance(reject_data, pd.DataFrame):
@@ -117,23 +128,8 @@ def get_lot_history():
                             trackout_qty = trackout_qty.rename(columns={'From Qty': 'In_Qty', 'To Qty': 'Out_Qty'})
                             pivot = pivot.merge(trackout_qty, on=['LotID', 'Process Step'], how='left')
 
-                    # Ensure In_Qty and Out_Qty are Series before fillna
-                    if not isinstance(pivot['In_Qty'], pd.Series):
-                        in_qty = pd.Series(pivot['In_Qty'])
-                    else:
-                        in_qty = pivot['In_Qty']
-                    if not isinstance(pivot['Out_Qty'], pd.Series):
-                        out_qty = pd.Series(pivot['Out_Qty'])
-                    else:
-                        out_qty = pivot['Out_Qty']
-                    in_qty = pd.to_numeric(in_qty, errors='coerce')
-                    if not isinstance(in_qty, pd.Series):
-                        in_qty = pd.Series(in_qty)
-                    in_qty = in_qty.fillna(0).astype(float)
-                    out_qty = pd.to_numeric(out_qty, errors='coerce')
-                    if not isinstance(out_qty, pd.Series):
-                        out_qty = pd.Series(out_qty)
-                    out_qty = out_qty.fillna(0).astype(float)
+                    in_qty = pd.to_numeric(pivot.get('In_Qty', pd.Series()), errors='coerce').fillna(0).astype(float)
+                    out_qty = pd.to_numeric(pivot.get('Out_Qty', pd.Series()), errors='coerce').fillna(0).astype(float)
                     pivot['Reject_Qty'] = (in_qty - out_qty).astype(int)
 
                     if 'RejectLot' in pivot.columns:
@@ -154,6 +150,7 @@ def get_lot_history():
         console_output.insert(tk.END, "Data loaded successfully.\n")
     else:
         console_output.insert(tk.END, "No data retrieved.\n")
+
 
 
 def threaded_get_lot_history():
