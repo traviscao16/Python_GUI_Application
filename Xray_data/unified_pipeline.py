@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 import sqlite3
 import xml.etree.ElementTree as ET
@@ -239,10 +240,17 @@ def main():
     
     setup_database()
     
-    # Run a one-time migration of data from old folders if they exist
-    migrate_old_data()
+    # Check for a command-line flag to run the migration.
+    # The migration should typically only be run once.
+    if '--migrate' in sys.argv:
+        migrate_old_data()
+        print("\nMigration finished. The script will now exit.")
+        print("Run the script without the --migrate flag to process new network files.")
+        logger.info("Migration flag detected. Script will exit after migration.")
+        return # Exit after migration is complete
 
     print("\nStarting continuous pipeline for new files from network...")
+    print("(To migrate old local data, run with the --migrate flag)")
     
     with sqlite3.connect(DB_PATH) as conn:
         lotx_files = get_files_to_process(conn, SOURCE_LOT_INFO_DIRS, '.lotx')
