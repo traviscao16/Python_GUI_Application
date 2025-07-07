@@ -47,6 +47,7 @@ def setup_database():
             LotId TEXT, Recipe TEXT, AllowSizeNull TEXT, CountUniqueBarcodesOnly TEXT, 
             Size INTEGER, CarrierIndex INTEGER, TrayId TEXT, TrayState INTEGER, 
             TrayCode TEXT, UnitId TEXT, UnitState INTEGER, UnitCode TEXT, UnitIdx INTEGER,
+            source_filename TEXT,
             UNIQUE(LotId, TrayId, UnitIdx)
         )""")
         
@@ -54,6 +55,7 @@ def setup_database():
         conn.execute(f"""
         CREATE TABLE IF NOT EXISTS Void_results (
             {', '.join(f'{col} TEXT' for col in CSV_STANDARD_HEADER)},
+            source_filename TEXT,
             UNIQUE(BoardBarcode, ModuleIndex, JointType, Pin)
         )""")
         
@@ -159,11 +161,14 @@ def run_pipeline(files, process_func, insert_query, batch_size, desc):
         for file_path, mtime, size in files:
             try:
                 records = process_func(file_path)
+                filename = os.path.basename(file_path)
                 if records is not None and not records.empty if isinstance(records, pd.DataFrame) else records:
                     if isinstance(records, pd.DataFrame):
+                        records['source_filename'] = filename
                         all_records.extend(records.to_records(index=False).tolist())
                     else:
-                        all_records.extend(records)
+                        # Add filename to each record tuple
+                        all_records.extend([r + (filename,) for r in records])
                     processed_metadata.append((file_path, mtime, size, 'SUCCESS'))
                 else:
                     # Mark as error if processing returns None or empty
@@ -191,6 +196,41 @@ def run_pipeline(files, process_func, insert_query, batch_size, desc):
             conn.executemany("INSERT OR REPLACE INTO processed_files (filepath, mtime, size, status) VALUES (?, ?, ?, ?)", processed_metadata)
             conn.commit()
 
+# --- MIGRATION OF OLD DATA ---
+def migrate_old_data():
+    """
+    One-time migration function to process files from the old local folders
+    and populate the new unified database. This ensures historical data is not lost.
+    """
+    print("Starting one-time migration of existing local data...")
+    logger.info("===== Starting Migration =====")
+    
+    OLD_LOTX_FOLDER = r'C:\Users\zbrzyy\Documents\Onsemi VN\XrayDatabase\Lot_Info'
+    OLD_CSV_FOLDER = r'C:\Users\zbrzyy\Documents\Onsemi VN\XrayDatabase\Void_results'
+
+    # Use the same file scanning logic, but on local folders
+    with sqlite3.connect(DB_PATH) as conn:
+        lotx_files = get_files_to_process(conn, [OLD_LOTX_FOLDER], '.lotx')
+        csv_files = get_files_to_process(conn, [OLD_CSV_FOLDER], '.csv')
+
+    if not lotx_files and not csv_files:
+        print("Migration check complete. No new local files found to migrate.")
+        logger.info("Migration check complete. No new local files found.")
+        return
+
+    print(f"Found {len(lotx_files)} local .lotx files and {len(csv_files)} local .csv files to migrate.")
+    
+    lot_info_query = f"INSERT OR IGNORE INTO Lot_info VALUES ({','.join(['?']*14)})"
+    void_results_query = f"INSERT OR IGNORE INTO Void_results VALUES ({','.join(['?']*(len(CSV_STANDARD_HEADER)+1))})"
+
+    # Run migration
+    run_pipeline(lotx_files, process_lotx_file, lot_info_query, BATCH_SIZE_LOTX, "Migrating LOTX")
+    run_pipeline(csv_files, process_csv_file, void_results_query, BATCH_SIZE_CSV, "Migrating CSV")
+    
+    print("Data migration complete.")
+    logger.info("===== Migration Finished =====")
+
+
 def main():
     """Main function to orchestrate the entire unified pipeline."""
     start_time = time.time()
@@ -199,15 +239,24 @@ def main():
     
     setup_database()
     
+    # Run a one-time migration of data from old folders if they exist
+    migrate_old_data()
+
+    print("\nStarting continuous pipeline for new files from network...")
+    
     with sqlite3.connect(DB_PATH) as conn:
         lotx_files = get_files_to_process(conn, SOURCE_LOT_INFO_DIRS, '.lotx')
         csv_files = get_files_to_process(conn, SOURCE_VOID_RESULTS_DIRS, '.csv')
 
-    print(f"Found {len(lotx_files)} new/modified .lotx files.")
-    print(f"Found {len(csv_files)} new/modified .csv files.")
+    if not lotx_files and not csv_files:
+        print("No new network files found to process.")
+        logger.info("No new network files found.")
+    else:
+        print(f"Found {len(lotx_files)} new/modified .lotx files on the network.")
+        print(f"Found {len(csv_files)} new/modified .csv files on the network.")
 
-    lot_info_query = f"INSERT OR IGNORE INTO Lot_info VALUES ({','.join(['?']*13)})"
-    void_results_query = f"INSERT OR IGNORE INTO Void_results VALUES ({','.join(['?']*len(CSV_STANDARD_HEADER))})"
+    lot_info_query = f"INSERT OR IGNORE INTO Lot_info VALUES ({','.join(['?']*14)})"
+    void_results_query = f"INSERT OR IGNORE INTO Void_results VALUES ({','.join(['?']*(len(CSV_STANDARD_HEADER)+1))})"
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
         future_lotx = executor.submit(run_pipeline, lotx_files, process_lotx_file, lot_info_query, BATCH_SIZE_LOTX, "Processing LOTX")
