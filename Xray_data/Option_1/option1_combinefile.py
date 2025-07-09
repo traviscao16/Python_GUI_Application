@@ -27,8 +27,8 @@ CONFIG = {
     # Processing parameters
     'max_workers': 8,
     'batch_size': 500,
-    'hours_lookback': 24,  # Only process files modified in last 24 hours for first run
-    'priority_hours': 2,   # Process files from last 2 hours first
+    'hours_lookback': 48,  # Only process files modified in last 24 hours for first run
+    'priority_hours': 24,   # Process files from last 2 hours first
     
     # CSV settings
     'csv_pattern': 'XRAY_SIC_*.csv',
