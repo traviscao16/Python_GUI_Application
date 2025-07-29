@@ -42,7 +42,7 @@ def sort_images(input_folder, template_folder, output_base_folder, threshold=0.5
                     break
 
 # Example usage
-input_folder = r'C:\Users\zbrzyy\Desktop\Logcheck\VT24A01V'
+input_folder = r'C:\Users\zbrzyy\Desktop\Logcheck\Clip 4 - DOE solder for clip thruhole\Image'
 template_folder = r"C:\Users\zbrzyy\Desktop\Works\CLIP\Clip_Sorting_template"
 output_base_folder = input_folder
 

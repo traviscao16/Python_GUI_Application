@@ -18,6 +18,8 @@ CONFIG = {
     # Source paths
     'source_1': [r'\\10.240.39.111\mips\Lot-Export', r'\\10.240.39.195\mips\Lot-Export'],
     'source_2': [r'\\10.240.39.111\mips\Void Result', r'\\10.240.39.195\mips\Void Result'],
+    #'source_1': [r'\\10.240.39.195\mips\Lot-Export'],
+    #'source_2': [r'\\10.240.39.195\mips\Void Result'],
     
     # Database paths
     'lot_info_db': r'C:\Users\zbrzyy\Documents\Onsemi VN\XrayDatabase\Lot_Info_database.db',
@@ -27,8 +29,8 @@ CONFIG = {
     # Processing parameters
     'max_workers': 8,
     'batch_size': 500,
-    'hours_lookback': 48,  # Only process files modified in last 24 hours for first run
-    'priority_hours': 24,   # Process files from last 2 hours first
+    'hours_lookback': 168,  # Only process files modified in last 24 hours for first run
+    'priority_hours': 168,   # Process files from last 2 hours first
     
     # CSV settings
     'csv_pattern': 'XRAY_SIC_*.csv',
