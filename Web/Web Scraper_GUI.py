@@ -41,12 +41,34 @@ def scrape_page(page):
         soup = BeautifulSoup(response.content, "html.parser")
 
         for message in soup.find_all("li", class_="message"):
-            content_block = message.find("blockquote", class_="messageText ugc baseHtml")
+            author = message.get("data-author", "").strip()
             time_tag = message.find("a", class_="datePermalink")
-            if content_block and time_tag:
-                text = content_block.get_text(separator="\n", strip=True)
-                time = time_tag.get_text(strip=True)
-                all_results.append(f"[{time}]\n{text}\n")
+            post_time = time_tag.get_text(strip=True) if time_tag else ""
+
+            quote_author = ""
+            quote_content = ""
+            quote_block = message.find("div", class_="bbCodeBlock bbCodeQuote")
+            if quote_block:
+                quote_author = quote_block.get("data-author", "").strip()
+                quote_container = quote_block.find("blockquote", class_="quoteContainer")
+                if quote_container:
+                    quote_div = quote_container.find("div", class_="quote")
+                    if quote_div:
+                        quote_content = quote_div.get_text(separator="\n", strip=True)
+
+            content_block = message.find("blockquote", class_="messageText ugc baseHtml")
+            main_content = ""
+            if content_block:
+                aside = content_block.find("aside")
+                if aside:
+                    aside.extract()
+                main_content = content_block.get_text(separator="\n", strip=True)
+
+            formatted = f"👤 Author: {author}\n🕒 Time: {post_time}"
+            if quote_author:
+                formatted += f"\n💬 Quote from {quote_author}:\n{quote_content}"
+            formatted += f"\n📝 Message:\n{main_content}\n{'-'*80}\n"
+            all_results.append(formatted)
 
     except Exception as e:
         all_results.append(f"Error loading page {current_page}: {e}\n")
@@ -100,7 +122,7 @@ page_entry = ttk.Entry(app, width=10)
 page_entry.grid(row=1, column=1, sticky="w", padx=5)
 ttk.Button(app, text="Refresh", command=refresh, bootstyle=PRIMARY).grid(row=1, column=3, sticky="w", padx=5)
 page_label = ttk.Label(app, text="Current Page: -")
-page_label.grid(row=1, column=2, sticky="w", padx=5)
+page_label.grid(row=1, column=2, sticky="w", padx=10)
 
 # Navigation buttons
 nav_frame = ttk.Frame(app)
