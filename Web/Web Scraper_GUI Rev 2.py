@@ -1,3 +1,4 @@
+
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 from tkinter import filedialog, Toplevel, messagebox, Listbox
@@ -6,9 +7,17 @@ from bs4 import BeautifulSoup
 import urllib3
 import json
 import os
+import sys
+
 
 # Disable SSL warnings
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+
+# Set working directory to the script's folder
+script_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
+os.chdir(script_dir)
+
 
 # Config paths
 CONFIG_DIR = "config"
@@ -19,6 +28,7 @@ os.makedirs(CONFIG_DIR, exist_ok=True)
 # Page tracking
 current_page = 1
 latest_page = 1
+last_known_post_ids = set()
 
 def load_last_session():
     if os.path.exists(SESSION_FILE):
@@ -44,8 +54,22 @@ def get_latest_page(base_url):
     except Exception:
         pass
     return 1
+
+def get_post_ids_from_page(url):
+    try:
+        response = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, verify=False)
+        soup = BeautifulSoup(response.content, "html.parser")
+        post_ids = set()
+        for message in soup.find_all("li", class_="message"):
+            post_id = message.get("id")
+            if post_id:
+                post_ids.add(post_id)
+        return post_ids
+    except Exception:
+        return set()
+
 def scrape_page(page):
-    global current_page, latest_page
+    global current_page, latest_page, last_known_post_ids
     base_url = url_entry.get().strip().rstrip("/")
     if not base_url or "f319.com" not in base_url:
         messagebox.showerror("Invalid URL", "Please enter a valid F319 thread URL.")
@@ -54,7 +78,8 @@ def scrape_page(page):
     latest_page = get_latest_page(base_url)
     current_page = max(1, min(page, latest_page))
     page_label.config(text=f"Current Page: {current_page} / Latest Page: {latest_page}")
-    noti_label.config(text="")  # Clear badge when scraping
+    noti_label.config(text="")
+    post_noti_label.config(text="")
     save_last_session(base_url, current_page)
 
     page_url = f"{base_url}/page-{current_page}"
@@ -99,12 +124,10 @@ def scrape_page(page):
         all_results.append(f"Error loading page {current_page}: {e}\n")
 
     output_text.insert("end", "\n".join(all_results))
+    last_known_post_ids = get_post_ids_from_page(page_url)
+
 def refresh(event=None):
-    try:
-        page = int(page_entry.get().strip())
-        scrape_page(page)
-    except ValueError:
-        messagebox.showerror("Invalid Input", "Please enter a valid page number.")
+    scrape_page(current_page)
 
 def go_previous():
     scrape_page(current_page - 1)
@@ -114,6 +137,13 @@ def go_next():
 
 def go_latest():
     scrape_page(get_latest_page(url_entry.get().strip().rstrip("/")))
+
+def go_to_page():
+    try:
+        page = int(page_entry.get().strip())
+        scrape_page(page)
+    except ValueError:
+        messagebox.showerror("Invalid Input", "Please enter a valid page number.")
 
 def save_to_file():
     content = output_text.get("1.0", "end").strip()
@@ -129,6 +159,7 @@ def save_to_file():
         messagebox.showinfo("Saved", f"Content saved to {file_path}")
 
 def check_for_updates():
+    global latest_page, last_known_post_ids
     base_url = url_entry.get().strip().rstrip("/")
     if not base_url or "f319.com" not in base_url:
         app.after(60000, check_for_updates)
@@ -140,7 +171,15 @@ def check_for_updates():
     else:
         noti_label.config(text="")
 
+    current_url = f"{base_url}/page-{current_page}"
+    current_post_ids = get_post_ids_from_page(current_url)
+    if current_post_ids - last_known_post_ids:
+        post_noti_label.config(text="🟢 New post available!")
+    else:
+        post_noti_label.config(text="")
+
     app.after(60000, check_for_updates)
+
 def add_bookmark():
     url = url_entry.get().strip()
     if not url:
@@ -212,6 +251,7 @@ def show_bookmarks():
     btn_frame.pack(pady=5)
     ttk.Button(btn_frame, text="Open", command=load_selected, bootstyle=PRIMARY).pack(side="left", padx=5)
     ttk.Button(btn_frame, text="Delete", command=delete_selected, bootstyle=DANGER).pack(side="left", padx=5)
+
 # GUI Setup
 app = ttk.Window(themename="darkly")
 app.title("Forum Scraper")
@@ -220,23 +260,48 @@ app.rowconfigure(3, weight=1)
 app.columnconfigure(1, weight=1)
 
 # URL input
-ttk.Label(app, text="Input URL:").grid(row=0, column=0, sticky="w", padx=5, pady=5)
-url_entry = ttk.Entry(app, width=80)
-url_entry.grid(row=0, column=1, columnspan=3, sticky="ew", padx=5, pady=5)
+
+# Toggleable URL input section
+toggle_frame = ttk.Frame(app)
+toggle_frame.grid(row=0, column=0, columnspan=4, sticky="w")
+
+def toggle_url_input():
+    if url_input_frame.winfo_viewable():
+        url_input_frame.grid_remove()
+        toggle_btn.config(text="Show URL Input")
+    else:
+        url_input_frame.grid()
+        toggle_btn.config(text="Hide URL Input")
+
+toggle_btn = ttk.Button(toggle_frame, text="Hide URL Input", command=toggle_url_input, bootstyle=SECONDARY)
+toggle_btn.pack(anchor="w", padx=5, pady=10)
+
+url_input_frame = ttk.Frame(app)
+url_input_frame.grid(row=0, column=2,padx=5, columnspan=4, sticky="w")
+
+ttk.Label(url_input_frame, text="Input URL:").grid(row=0, column=1, sticky="w", padx=5, pady=5)
+url_entry = ttk.Entry(url_input_frame, width=80)
+url_entry.grid(row=0, column=2, columnspan=4, sticky="w", padx=5, pady=5)
+
+# Blank row to prevent overlap
+#ttk.Label(app, text="").grid(row=2, column=0, columnspan=7, pady=5)
 
 # Page input and controls
-ttk.Label(app, text="Go to Page:").grid(row=1, column=0, sticky="w", padx=5)
+ttk.Label(app, text="Go to Page:").grid(row=1, column=0, sticky="w", padx=5,pady=5)
 page_entry = ttk.Entry(app, width=10)
 page_entry.grid(row=1, column=1, sticky="w", padx=5)
-ttk.Button(app, text="Refresh", command=refresh, bootstyle=PRIMARY).grid(row=1, column=3, sticky="w", padx=5)
+ttk.Button(app, text="Go", command=go_to_page, bootstyle=PRIMARY).grid(row=1, column=2, sticky="w", padx=5)
+ttk.Button(app, text="Refresh", command=refresh, bootstyle=SECONDARY).grid(row=1, column=3, sticky="w", padx=5)
 page_label = ttk.Label(app, text="Current Page: -")
-page_label.grid(row=1, column=2, sticky="w", padx=10)
+page_label.grid(row=1, column=4, sticky="w", padx=10)
 noti_label = ttk.Label(app, text="", bootstyle=INFO)
-noti_label.grid(row=1, column=4, sticky="w", padx=5)
+noti_label.grid(row=1, column=5, sticky="w", padx=5)
+post_noti_label = ttk.Label(app, text="", bootstyle=INFO)
+post_noti_label.grid(row=1, column=6, sticky="w", padx=5)
 
 # Navigation buttons
 nav_frame = ttk.Frame(app)
-nav_frame.grid(row=2, column=0, columnspan=5, sticky="ew", padx=5)
+nav_frame.grid(row=2, column=0, columnspan=7, sticky="ew", padx=5,pady=5)
 ttk.Button(nav_frame, text="Previous Page", command=go_previous, bootstyle=SECONDARY).pack(side="left", padx=5)
 ttk.Button(nav_frame, text="Next Page", command=go_next, bootstyle=SECONDARY).pack(side="left", padx=5)
 ttk.Button(nav_frame, text="Latest Page", command=go_latest, bootstyle=SECONDARY).pack(side="left", padx=5)
@@ -246,7 +311,7 @@ ttk.Button(nav_frame, text="Show Bookmarks", command=show_bookmarks, bootstyle=I
 
 # Output area
 output_text = ttk.ScrolledText(app, wrap="word", font=("Consolas", 10))
-output_text.grid(row=3, column=0, columnspan=5, sticky="nsew", padx=10, pady=10)
+output_text.grid(row=3, column=0, columnspan=7, sticky="nsew", padx=10, pady=10)
 
 # Bind F5 to refresh
 app.bind("<F5>", refresh)
