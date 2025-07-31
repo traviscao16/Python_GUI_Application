@@ -7,7 +7,7 @@ import pandas as pd
 Image.MAX_IMAGE_PIXELS = None
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
-folder_path = r"C:\Users\zbrzyy\Desktop\Logcheck\VT28A0R7\L2"
+folder_path = r"C:\Users\zbrzyy\Desktop\Logcheck\dummyNewClipRun2\L2"
 
 def get_image_files(folder_path):
     return [f for f in os.listdir(folder_path) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]

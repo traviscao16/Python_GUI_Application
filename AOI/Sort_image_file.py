@@ -2,7 +2,7 @@ import os
 import shutil
 
 # Define the source directory
-source_dir = r'C:\Users\zbrzyy\Desktop\Logcheck\VT28A0R7'
+source_dir = r"C:\Users\zbrzyy\Desktop\Logcheck\dummyNewClipRun2"
 
 # Define the target directories inside the source directory
 target_dir_L1 = os.path.join(source_dir, 'L1')

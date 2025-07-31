@@ -77,6 +77,8 @@ def scrape_page(page):
 
     latest_page = get_latest_page(base_url)
     current_page = max(1, min(page, latest_page))
+    page_entry.delete(0, "end")
+    page_entry.insert(0, str(current_page))
     page_label.config(text=f"Current Page: {current_page} / Latest Page: {latest_page}")
     noti_label.config(text="")
     post_noti_label.config(text="")
@@ -117,7 +119,7 @@ def scrape_page(page):
             formatted = f"👤 Author: {author}\n🕒 Time: {post_time}"
             if quote_author:
                 formatted += f"\n💬 Quote from {quote_author}:\n{quote_content}"
-            formatted += f"\n📝 Message:\n{main_content}\n{'-'*80}\n"
+            formatted += f"\n\n📝---> Message<---:\n{main_content}\n{'-'*80}\n"
             all_results.append(formatted)
 
     except Exception as e:
@@ -168,6 +170,7 @@ def check_for_updates():
     new_latest = get_latest_page(base_url)
     if new_latest > latest_page:
         noti_label.config(text="🟢 New page available!")
+        page_label.config(text=f"Current Page: {current_page} / Latest Page: {new_latest}")
     else:
         noti_label.config(text="")
 
@@ -273,11 +276,12 @@ def toggle_url_input():
         url_input_frame.grid()
         toggle_btn.config(text="Hide URL Input")
 
-toggle_btn = ttk.Button(toggle_frame, text="Hide URL Input", command=toggle_url_input, bootstyle=SECONDARY)
+toggle_btn = ttk.Button(toggle_frame, text="URL Input", command=toggle_url_input, bootstyle=SECONDARY)
 toggle_btn.pack(anchor="w", padx=5, pady=10)
 
 url_input_frame = ttk.Frame(app)
 url_input_frame.grid(row=0, column=2,padx=5, columnspan=4, sticky="w")
+url_input_frame.grid_remove()
 
 ttk.Label(url_input_frame, text="Input URL:").grid(row=0, column=1, sticky="w", padx=5, pady=5)
 url_entry = ttk.Entry(url_input_frame, width=80)
