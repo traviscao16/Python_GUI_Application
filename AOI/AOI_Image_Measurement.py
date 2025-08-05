@@ -12,6 +12,9 @@ class DistanceMeasurerApp:
 
         self.canvas = tk.Canvas(root, cursor="cross", bg="gray")
         self.canvas.pack(fill="both", expand=True)
+        self.canvas.bind("<Button-1>", self.select_line)
+        self.canvas.bind("<B1-Motion>", self.drag_line)
+        self.dragging = False  # Add this attribute
 
         control_frame = tk.Frame(root)
         control_frame.pack(fill="x")
@@ -27,6 +30,12 @@ class DistanceMeasurerApp:
 
         self.mode_button = tk.Button(control_frame, text="Switch to X-Axis", command=self.toggle_mode)
         self.mode_button.pack(side="left")
+
+        # Add Zoom In and Zoom Out buttons
+        self.zoom_in_button = tk.Button(control_frame, text="Zoom In", command=self.zoom_in)
+        self.zoom_in_button.pack(side="left")
+        self.zoom_out_button = tk.Button(control_frame, text="Zoom Out", command=self.zoom_out)
+        self.zoom_out_button.pack(side="left")
 
         self.result_label = tk.Label(control_frame, text="Distance: ")
         self.result_label.pack(side="left")
@@ -59,10 +68,10 @@ class DistanceMeasurerApp:
         self.mode = 'Y'
         self.selected_line = 0
 
-        self.canvas.bind("<B1-Motion>", self.move_line)
-        self.canvas.bind("<MouseWheel>", self.zoom)
-        self.canvas.bind("<Button-4>", self.zoom)
-        self.canvas.bind("<Button-5>", self.zoom)
+        # Remove mouse wheel and button zoom bindings
+        # self.canvas.bind("<MouseWheel>", self.zoom)
+        # self.canvas.bind("<Button-4>", self.zoom)
+        # self.canvas.bind("<Button-5>", self.zoom)
         self.root.bind("<Left>", self.move_left)
         self.root.bind("<Right>", self.move_right)
         self.root.bind("<Up>", self.move_up)
@@ -72,7 +81,8 @@ class DistanceMeasurerApp:
         file_path = filedialog.askopenfilename()
         if file_path:
             self.original_image = cv2.cvtColor(cv2.imread(file_path), cv2.COLOR_BGR2RGB)
-            self.resize_image_to_screen()
+            #self.resize_image_to_screen()
+            self.image = self.original_image.copy()
             self.zoom_factor = 1.0
             self.display_image()
 
@@ -96,29 +106,48 @@ class DistanceMeasurerApp:
             self.canvas.delete(line_id)
         self.line_ids.clear()
         height, width = self.image.shape[:2]
-        for pos in self.line_positions:
+        for i, pos in enumerate(self.line_positions):
+            if i == self.selected_line:
+                line_color = "blue"
+                line_width = 1.5
+            else:
+                line_color = "red"
+                line_width = 1.5
             if self.mode == 'Y':
                 x = int(pos * self.zoom_factor)
-                line_id = self.canvas.create_line(x, 0, x, height, fill="red", width=2)
+                line_id = self.canvas.create_line(x, 0, x, height, fill=line_color, width=line_width)
             else:
                 y = int(pos * self.zoom_factor)
-                line_id = self.canvas.create_line(0, y, width, y, fill="red", width=2)
+                line_id = self.canvas.create_line(0, y, width, y, fill=line_color, width=line_width)
             self.line_ids.append(line_id)
         self.calculate_distance()
 
-    def move_line(self, event):
+    def select_line(self, event):
+        # Detect if mouse is near a line and select it (no drag yet)
         for i, line_id in enumerate(self.line_ids):
             coords = self.canvas.coords(line_id)
-            if self.mode == 'Y' and abs(event.x - coords[0]) < 10:
+            if self.mode == 'Y' and abs(event.x - coords[0]) < 5:
                 self.selected_line = i
-                self.line_positions[i] = int(event.x / self.zoom_factor)
+                self.dragging = False  # Only select, don't drag yet
                 self.draw_lines()
                 break
-            elif self.mode == 'X' and abs(event.y - coords[1]) < 10:
+            elif self.mode == 'X' and abs(event.y - coords[1]) < 5:
                 self.selected_line = i
-                self.line_positions[i] = int(event.y / self.zoom_factor)
+                self.dragging = False
                 self.draw_lines()
                 break
+
+    def drag_line(self, event):
+        # Start dragging only if mouse is near the selected line
+        if self.selected_line is not None:
+            self.dragging = True
+        if not self.dragging:
+            return
+        if self.mode == 'Y':
+            self.line_positions[self.selected_line] = int(event.x / self.zoom_factor)
+        else:
+            self.line_positions[self.selected_line] = int(event.y / self.zoom_factor)
+        self.draw_lines()
 
     def move_left(self, event):
         if self.mode == 'Y':
@@ -179,14 +208,22 @@ class DistanceMeasurerApp:
         self.line_positions = [100, 200]
         self.draw_lines()
 
-    def zoom(self, event):
+    # Add new zoom methods
+    def zoom_in(self):
         if self.original_image is None:
             return
-        if event.delta > 0 or event.num == 4:
-            self.zoom_factor *= 1.1
-        elif event.delta < 0 or event.num == 5:
-            self.zoom_factor /= 1.1
-        self.zoom_factor = max(0.1, min(self.zoom_factor, 10))
+        self.zoom_factor *= 1.1
+        self.zoom_factor = min(self.zoom_factor, 10)
+        new_size = (int(self.original_image.shape[1] * self.zoom_factor),
+                    int(self.original_image.shape[0] * self.zoom_factor))
+        self.image = cv2.resize(self.original_image, new_size, interpolation=cv2.INTER_LINEAR)
+        self.display_image()
+
+    def zoom_out(self):
+        if self.original_image is None:
+            return
+        self.zoom_factor /= 1.1
+        self.zoom_factor = max(self.zoom_factor, 0.1)
         new_size = (int(self.original_image.shape[1] * self.zoom_factor),
                     int(self.original_image.shape[0] * self.zoom_factor))
         self.image = cv2.resize(self.original_image, new_size, interpolation=cv2.INTER_LINEAR)
