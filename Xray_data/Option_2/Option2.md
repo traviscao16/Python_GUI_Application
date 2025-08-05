@@ -52,3 +52,47 @@ Whenever you want to update your local master database with the latest data from
         ```
 
 After these two steps, your `xray_data.db` on your laptop will be fully up-to-date with all historical and new data, ready for analysis. This entire process is now robust, scalable, and complete.
+
+-----------------------------------------
+It appears you've already organized the files into `Option_1` and `Option_2` folders, which is great. My apologies for attempting to do it again.
+
+You are now perfectly set up to test both phases of the Hybrid Approach. Here is a final summary of the two solutions and how to use them from their new locations:
+
+### Phase 1: Immediate Optimization (Option 1)
+
+*   **Script:** `Xray_data/Option_1/unified_pipeline.py`
+*   **Purpose:** The all-in-one script that runs on your laptop, processing files directly from the network into a single database.
+*   **How to Run:**
+    *   **For regular use (new network files):**
+        ```
+        python Xray_data/Option_1/unified_pipeline.py
+        ```
+    *   **To migrate old local data (run once):**
+        ```
+        python Xray_data/Option_1/unified_pipeline.py --migrate
+        ```
+
+### Phase 2: Strategic Migration (Option 2)
+
+This is the more robust, long-term solution.
+
+*   **Scripts:**
+    1.  `Xray_data/Option_2/edge_processor.py` (Runs on the X-ray machine)
+    2.  `Xray_data/Option_2/db_synchronizer.py` (Runs on your laptop)
+    3.  `Xray_data/Option_2/merge_databases.py` (Runs on your laptop)
+*   **How to Run:**
+    1.  **On the X-ray machine:** Start the processor to run continuously.
+        ```
+        python Xray_data/Option_2/edge_processor.py
+        ```
+    2.  **On your laptop (whenever you need the latest data):**
+        *   First, sync the database:
+            ```
+            python Xray_data/Option_2/db_synchronizer.py
+            ```
+        *   Then, merge it into your master database:
+            ```
+            python Xray_data/Option_2/merge_databases.py
+            ```
+
+You have a complete set of solutions ready for testing. This concludes the implementation based on your detailed plan.
