@@ -222,7 +222,7 @@ class DistanceMeasurerApp:
     def zoom_out(self):
         if self.original_image is None:
             return
-        self.zoom_factor /= 1.1
+        self.zoom_factor /= 1.2
         self.zoom_factor = max(self.zoom_factor, 0.1)
         new_size = (int(self.original_image.shape[1] * self.zoom_factor),
                     int(self.original_image.shape[0] * self.zoom_factor))
