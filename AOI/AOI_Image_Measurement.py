@@ -1,7 +1,7 @@
 # Full code with lower and upper tolerance limits for X and Y axes
 
 import tkinter as tk
-from tkinter import filedialog
+from tkinter import filedialog, messagebox
 from PIL import Image, ImageTk
 import cv2
 
@@ -9,11 +9,18 @@ class DistanceMeasurerApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Distance Measurer")
+        
+        # Set full screen mode
+        self.root.state('zoomed')  # For Windows
+        # Alternative for other systems: self.root.attributes('-fullscreen', True)
+        
+        # Get screen dimensions
+        self.screen_width = self.root.winfo_screenwidth()
+        self.screen_height = self.root.winfo_screenheight()
 
         self.canvas = tk.Canvas(root, cursor="cross", bg="gray")
         self.canvas.pack(fill="both", expand=True)
-        self.canvas.bind("<Button-1>", self.select_line)
-        self.canvas.bind("<B1-Motion>", self.drag_line)
+        # Remove conflicting bindings - we'll handle them conditionally
         self.dragging = False  # Add this attribute
 
         control_frame = tk.Frame(root)
@@ -70,6 +77,11 @@ class DistanceMeasurerApp:
         self.file_name = ""  # Add this line
         self.pan_start = None
         self.pan_offset = [0, 0]
+        
+        # Variables for maintaining scale accuracy (kept for compatibility)
+        self.original_image_width = None
+        self.original_image_height = None
+        self.display_scale_factor = 1.0  # No scaling applied - kept for compatibility
         self.canvas.bind("<ButtonPress-3>", self.start_pan)
         self.canvas.bind("<B3-Motion>", self.do_pan)
         self.canvas.bind("<ButtonRelease-3>", self.end_pan)
@@ -82,9 +94,14 @@ class DistanceMeasurerApp:
         self.root.bind("<Right>", self.move_right)
         self.root.bind("<Up>", self.move_up)
         self.root.bind("<Down>", self.move_down)
+        self.root.bind("<Escape>", self.exit_fullscreen)
 
         self.calib_button = tk.Button(control_frame, text="Calibration", command=self.open_calibration_window)
         self.calib_button.pack(side="left")
+        
+    def exit_fullscreen(self, event=None):
+        """Exit full screen mode"""
+        self.root.state('normal')
 
         # Calibration state
         self.calibration_mode = False
@@ -92,27 +109,66 @@ class DistanceMeasurerApp:
         self.calib_zone_rect = None
         self.calib_measured_label = None
 
-        # Bind middle mouse for calibration zone
-        self.canvas.bind("<ButtonPress-2>", self.calib_zone_start_event)
-        self.canvas.bind("<B2-Motion>", self.calib_zone_draw_event)
-        self.canvas.bind("<ButtonRelease-2>", self.calib_zone_end_event)
+        # Calibration circle variables
+        self.calib_circle = None
+        self.calib_circle_label = None
+        self.calib_circle_center = None
+        self.calib_circle_radius = None
+        self.calib_drag_mode = None  # "move" or "resize"
+        self.calib_drag_offset = None
+        
+        # Initialize event bindings
+        self.bind_events()
+
+    def bind_events(self):
+        """Bind events based on current mode"""
+        # Unbind all mouse events first
+        self.canvas.unbind("<Button-1>")
+        self.canvas.unbind("<B1-Motion>")
+        self.canvas.unbind("<ButtonRelease-1>")
+        self.canvas.unbind("<ButtonPress-2>")
+        self.canvas.unbind("<B2-Motion>")
+        self.canvas.unbind("<ButtonRelease-2>")
+        
+        if self.calibration_mode:
+            # Bind calibration events
+            self.canvas.bind("<ButtonPress-2>", self.calib_circle_start_event)
+            self.canvas.bind("<B2-Motion>", self.calib_circle_draw_event)
+            self.canvas.bind("<ButtonRelease-2>", self.calib_circle_end_event)
+            self.canvas.bind("<ButtonPress-1>", self.calib_circle_select_event)
+            self.canvas.bind("<B1-Motion>", self.calib_circle_adjust_event)
+            self.canvas.bind("<ButtonRelease-1>", self.calib_circle_release_event)
+        else:
+            # Bind line selection and dragging events
+            self.canvas.bind("<Button-1>", self.select_line)
+            self.canvas.bind("<B1-Motion>", self.drag_line)
 
     def load_image(self):
         file_path = filedialog.askopenfilename()
         if file_path:
             self.file_name = file_path.split("/")[-1] if "/" in file_path else file_path.split("\\")[-1]  # Store just the file name
-            self.original_image = cv2.cvtColor(cv2.imread(file_path), cv2.COLOR_BGR2RGB)
+            # Load image with proper error handling
+            loaded_image = cv2.imread(file_path)
+            if loaded_image is None:
+                messagebox.showerror("Error", "Failed to load image")
+                return
+            self.original_image = cv2.cvtColor(loaded_image, cv2.COLOR_BGR2RGB)
+            
+            # Store original dimensions
+            self.original_image_height, self.original_image_width = self.original_image.shape[:2]
+            
+            # Keep original image size - no auto-resize
             self.image = self.original_image.copy()
+            self.display_scale_factor = 1.0  # No scaling applied
+            
             self.zoom_factor = 1.0
+            self.calibration_mode = False  # Ensure not in calibration mode
+            self.canvas.delete("calib_circle")
+            self.canvas.delete("calib_circle_label")
+            self.bind_events()  # Rebind events
             self.display_image()
 
-    def resize_image_to_screen(self):
-        screen_w = self.root.winfo_screenwidth()
-        screen_h = self.root.winfo_screenheight()
-        img_h, img_w = self.original_image.shape[:2]
-        scale = min(screen_w / img_w, screen_h / img_h)
-        new_size = (int(img_w * scale), int(img_h * scale))
-        self.image = cv2.resize(self.original_image, new_size, interpolation=cv2.INTER_AREA)
+
 
     def start_pan(self, event):
         self.pan_start = (event.x, event.y)
@@ -130,17 +186,22 @@ class DistanceMeasurerApp:
         self.pan_start = None
 
     def display_image(self):
+        if self.image is None:
+            return
         img = Image.fromarray(self.image)
         self.tk_image = ImageTk.PhotoImage(img)
         self.canvas.delete("all")
         self.canvas.create_image(self.pan_offset[0], self.pan_offset[1], anchor="nw", image=self.tk_image, tags="IMG")
-        # Show file name in top right (adjust for pan)
+        # Show file name in bottom right (adjust for pan)
         if self.file_name:
             width = self.image.shape[1]
-            self.canvas.create_text(width - 10 + self.pan_offset[0], 10 + self.pan_offset[1], text=self.file_name, anchor="ne", fill="white", font=("Arial", 10, "bold"), tags="file_name")
+            height = self.image.shape[0]
+            self.canvas.create_text(width - 10 + self.pan_offset[0], height - 10 + self.pan_offset[1], text=self.file_name, anchor="se", fill="white", font=("Arial", 10, "bold"), tags="file_name")
         self.draw_lines()
 
     def draw_lines(self):
+        if self.image is None:
+            return
         for line_id in self.line_ids:
             self.canvas.delete(line_id)
         self.line_ids.clear()
@@ -183,9 +244,9 @@ class DistanceMeasurerApp:
         if not self.dragging:
             return
         if self.mode == 'Y':
-            self.line_positions[self.selected_line] = int(event.x / self.zoom_factor)
+            self.line_positions[self.selected_line] = int((event.x - self.pan_offset[0]) / self.zoom_factor)
         else:
-            self.line_positions[self.selected_line] = int(event.y / self.zoom_factor)
+            self.line_positions[self.selected_line] = int((event.y - self.pan_offset[1]) / self.zoom_factor)
         self.draw_lines()
 
     def move_left(self, event):
@@ -217,26 +278,37 @@ class DistanceMeasurerApp:
                 axis = "Y" if self.mode == 'Y' else "X"
                 self.result_label.config(text=f"{axis}-Axis Distance: {distance_mm:.4f} mm")
 
-                self.canvas.delete("distance_text")
+                # Get tolerance values
                 if self.mode == 'Y':
-                    mid_x = int(sum(self.line_positions) / 2 * self.zoom_factor) + self.pan_offset[0]
-                    self.canvas.create_text(mid_x, 20 + self.pan_offset[1], text=f"{distance_mm:.4f} mm", fill="yellow", font=("Arial", 14), tags="distance_text")
                     tol_lower = float(self.tol_y_lower.get())
                     tol_upper = float(self.tol_y_upper.get())
                 else:
-                    mid_y = int(sum(self.line_positions) / 2 * self.zoom_factor) + self.pan_offset[1]
-                    self.canvas.create_text(60 + self.pan_offset[0], mid_y, text=f"{distance_mm:.4f} mm", fill="yellow", font=("Arial", 14), tags="distance_text")
                     tol_lower = float(self.tol_x_lower.get())
                     tol_upper = float(self.tol_x_upper.get())
 
-                self.canvas.delete("tolerance_status")
+                # Determine tolerance status
                 if tol_lower <= distance_mm <= tol_upper:
                     status = "OK"
                     color = "green"
                 else:
                     status = "Out of Tolerance"
                     color = "red"
-                self.canvas.create_text(100 + self.pan_offset[0], 40 + self.pan_offset[1], text=status, fill=color, font=("Arial", 12), tags="tolerance_status")
+
+                # Create combined text: "1.9 mm - OK" or "1.9 mm - Out of Tolerance"
+                combined_text = f"{distance_mm:.3f} mm - {status}"
+
+                # Remove old text elements
+                self.canvas.delete("distance_text")
+                self.canvas.delete("tolerance_status")
+
+                # Position at bottom center of image, aligned with filename
+                if self.image is not None:
+                    width = self.image.shape[1]
+                    height = self.image.shape[0]
+                    center_x = width / 2 + self.pan_offset[0]
+                    bottom_y = height - 10 + self.pan_offset[1]
+                    
+                    self.canvas.create_text(center_x, bottom_y, text=combined_text, fill=color, font=("Arial", 10, "bold"), anchor="s", tags="distance_text")
 
             except ValueError:
                 self.result_label.config(text="Invalid scale or tolerance")
@@ -285,6 +357,7 @@ class DistanceMeasurerApp:
         def draw_zone():
             self.calibration_mode = True
             self.calib_measured_label = measured_label
+            self.bind_events()  # Rebind events for calibration mode
             calib_win.lift()
             calib_win.focus_force()
 
@@ -298,78 +371,118 @@ class DistanceMeasurerApp:
                     scale = hole_dia / measured
                     self.scale_entry.delete(0, tk.END)
                     self.scale_entry.insert(0, f"{scale:.6f}")
+                    self.calibration_mode = False  # Ensure exit calibration mode
+                    self.canvas.delete("calib_circle")
+                    self.canvas.delete("calib_circle_label")
+                    self.bind_events()  # Rebind events for normal mode
                     calib_win.destroy()
             except Exception as e:
-                tk.messagebox.showerror("Error", str(e))
+                messagebox.showerror("Error", str(e))
 
         tk.Button(calib_win, text="Apply Calibration", command=apply_calibration).grid(row=3, column=0, columnspan=2)
 
-    def calib_zone_start_event(self, event):
-        if self.calibration_mode:
-            self.calib_zone_start = (event.x, event.y)
-            if self.calib_zone_rect:
-                self.canvas.delete(self.calib_zone_rect)
-            self.calib_zone_rect = self.canvas.create_rectangle(event.x, event.y, event.x, event.y, outline="yellow", width=2)
-
-    def calib_zone_draw_event(self, event):
-        if self.calibration_mode and self.calib_zone_start:
-            self.canvas.coords(self.calib_zone_rect, self.calib_zone_start[0], self.calib_zone_start[1], event.x, event.y)
-
-    def calib_zone_end_event(self, event):
-        if self.calibration_mode and self.calib_zone_start:
-            x0, y0 = self.calib_zone_start
-            x1, y1 = event.x, event.y
-            x0, x1 = sorted([x0, x1])
-            y0, y1 = sorted([y0, y1])
-            # Convert to image coordinates
-            x0_img = int((x0 - self.pan_offset[0]) / self.zoom_factor)
-            y0_img = int((y0 - self.pan_offset[1]) / self.zoom_factor)
-            x1_img = int((x1 - self.pan_offset[0]) / self.zoom_factor)
-            y1_img = int((y1 - self.pan_offset[1]) / self.zoom_factor)
-            roi = self.original_image[y0_img:y1_img, x0_img:x1_img]
-            gray = cv2.cvtColor(roi, cv2.COLOR_RGB2GRAY)
-            gray = cv2.medianBlur(gray, 5)
-            circles = cv2.HoughCircles(gray, cv2.HOUGH_GRADIENT, dp=1.2, minDist=20,
-                                       param1=50, param2=30, minRadius=5, maxRadius=0)
-            measured = 0
+        def on_close():
+            self.calibration_mode = False  # Ensure exit calibration mode
             self.canvas.delete("calib_circle")
-            if circles is not None:
-                circles = circles[0]
-                # Take the largest circle found
-                largest = max(circles, key=lambda c: c[2])
-                measured = largest[2] * 2  # diameter in pixels
+            self.canvas.delete("calib_circle_label")
+            self.bind_events()  # Rebind events for normal mode
+            calib_win.destroy()
 
-                # Draw the circle on the canvas (convert ROI coords to canvas coords)
-                cx_roi, cy_roi, r_roi = largest
-                cx_img = x0_img + cx_roi
-                cy_img = y0_img + cy_roi
-                cx_canvas = int(cx_img * self.zoom_factor) + self.pan_offset[0]
-                cy_canvas = int(cy_img * self.zoom_factor) + self.pan_offset[1]
-                r_canvas = int(r_roi * self.zoom_factor)
-                # Draw circle
-                self.canvas.create_oval(
-                    cx_canvas - r_canvas, cy_canvas - r_canvas,
-                    cx_canvas + r_canvas, cy_canvas + r_canvas,
-                    outline="yellow", width=2, tags="calib_circle"
+        calib_win.protocol("WM_DELETE_WINDOW", on_close)
+
+    def calib_circle_start_event(self, event):
+        if self.calibration_mode:
+            self.canvas.delete("calib_circle")
+            self.canvas.delete("calib_circle_label")
+            self.calib_circle_center = (event.x, event.y)
+            self.calib_circle_radius = 1
+            self.calib_circle = self.canvas.create_oval(
+                event.x, event.y, event.x, event.y,
+                outline="yellow", width=2, tags="calib_circle"
+            )
+
+    def calib_circle_draw_event(self, event):
+        if self.calibration_mode and self.calib_circle_center and self.calib_circle is not None:
+            x0, y0 = self.calib_circle_center
+            r = ((event.x - x0) ** 2 + (event.y - y0) ** 2) ** 0.5
+            self.calib_circle_radius = r
+            self.canvas.coords(
+                self.calib_circle,
+                x0 - r, y0 - r, x0 + r, y0 + r
+            )
+            self._update_calib_circle_label()
+
+    def calib_circle_end_event(self, event):
+        if self.calibration_mode and self.calib_circle_center:
+            self._update_calib_circle_label()
+            # Remain in calibration mode for adjustment
+
+    def calib_circle_select_event(self, event):
+        # Allow move or resize if click near center or edge
+        if self.calib_circle_center and self.calib_circle_radius:
+            x0, y0 = self.calib_circle_center
+            r = self.calib_circle_radius
+            dist = ((event.x - x0) ** 2 + (event.y - y0) ** 2) ** 0.5
+            if abs(dist - r) < 10:
+                self.calib_drag_mode = "resize"
+            elif dist < r:
+                self.calib_drag_mode = "move"
+                self.calib_drag_offset = (event.x - x0, event.y - y0)
+            else:
+                self.calib_drag_mode = None
+
+    def calib_circle_adjust_event(self, event):
+        if self.calib_drag_mode == "move" and self.calib_drag_offset is not None:
+            dx, dy = self.calib_drag_offset
+            self.calib_circle_center = (event.x - dx, event.y - dy)
+            x0, y0 = self.calib_circle_center
+            r = self.calib_circle_radius
+            if self.calib_circle is not None:
+                self.canvas.coords(
+                    self.calib_circle,
+                    x0 - r, y0 - r, x0 + r, y0 + r
                 )
-                # Calculate diameter in mm using current scale
-                try:
-                    scale = float(self.scale_entry.get())
-                    diameter_mm = measured * scale
-                except Exception:
-                    diameter_mm = 0.0
-                # Show diameter in mm near the circle
-                self.canvas.create_text(
-                    cx_canvas, cy_canvas + r_canvas + 20,
-                    text=f"{diameter_mm:.3f} mm",
-                    fill="yellow", font=("Arial", 12, "bold"), tags="calib_circle"
+            self._update_calib_circle_label()
+        elif self.calib_drag_mode == "resize" and self.calib_circle_center is not None:
+            x0, y0 = self.calib_circle_center
+            r = ((event.x - x0) ** 2 + (event.y - y0) ** 2) ** 0.5
+            self.calib_circle_radius = r
+            if self.calib_circle is not None:
+                self.canvas.coords(
+                    self.calib_circle,
+                    x0 - r, y0 - r, x0 + r, y0 + r
                 )
-            if self.calib_measured_label:
-                self.calib_measured_label.config(text=f"{measured:.2f}")
-            self.calibration_mode = False
-            if self.calib_zone_rect:
-                self.canvas.delete(self.calib_zone_rect)
-                self.calib_zone_rect = None
+            self._update_calib_circle_label()
+
+    def calib_circle_release_event(self, event):
+        self.calib_drag_mode = None
+        self.calib_drag_offset = None
+
+    def _update_calib_circle_label(self):
+        self.canvas.delete("calib_circle_label")
+        if not (self.calib_circle_center is not None and self.calib_circle_radius is not None):
+            return
+        x0, y0 = self.calib_circle_center
+        r = self.calib_circle_radius
+        # Convert to image coordinates
+        x_img = (x0 - self.pan_offset[0]) / self.zoom_factor
+        y_img = (y0 - self.pan_offset[1]) / self.zoom_factor
+        r_img = r / self.zoom_factor
+        diameter_px = r_img * 2
+        try:
+            scale = float(self.scale_entry.get())
+            diameter_mm = diameter_px * scale
+        except Exception:
+            diameter_mm = 0.0
+        # Show diameter in pixels in calibration window
+        if self.calib_measured_label:
+            self.calib_measured_label.config(text=f"{diameter_px:.2f}")
+        # Show diameter in mm on canvas
+        self.calib_circle_label = self.canvas.create_text(
+            x0, y0 + r + 20,
+            text=f"{diameter_mm:.3f} mm",
+            fill="yellow", font=("Arial", 12, "bold"), tags="calib_circle_label"
+        )
 
 # Run the app
 if __name__ == "__main__":
