@@ -41,7 +41,7 @@ def filter_jig_ids(input_file_path, output_file_path, search_terms):
 
 # Example usage
 input_path = r"C:\Users\zbrzyy\Desktop\Logcheck\ceramic crack\TraceJig_W20-W31.csv"
-output_path = r"C:\Users\zbrzyy\Desktop\Logcheck\ceramic crack\TraceJig_result_2.csv"
+output_path = r"C:\Users\zbrzyy\Desktop\Logcheck\ceramic crack\TraceJig_result_WF10h.csv"
 search_terms_file = r"C:\Users\zbrzyy\Desktop\Logcheck\ceramic crack\search_terms.csv"
 
 search_terms = load_search_terms(search_terms_file)

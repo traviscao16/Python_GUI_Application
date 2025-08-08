@@ -19,7 +19,7 @@ def query_database():
 
         conn = sqlite3.connect(r"C:\Users\zbrzyy\Documents\Onsemi VN\XrayDatabase\LF_Info_database.db")
         placeholders = ','.join('?' for _ in lf_ids)
-        query = f"SELECT Date, JIG_ID, Lotname, LF_ID FROM LF_Info WHERE LF_ID IN ({placeholders})"
+        query = f"SELECT * FROM LF_Info WHERE LF_ID IN ({placeholders})"
         df = pd.read_sql_query(query, conn, params=lf_ids)
         conn.close()
 
@@ -34,7 +34,7 @@ def query_database():
         latest_df = df_sorted.groupby('LF_ID', as_index=False).first()
 
         # Select only required columns
-        result_df = latest_df[['Date', 'Lotname', 'JIG_ID', 'LF_ID']]
+        result_df = latest_df[['Date', 'Lotname', 'JIG_ID', 'LF_ID', '2D_RESULT']]
 
         global final_df
         final_df = result_df
