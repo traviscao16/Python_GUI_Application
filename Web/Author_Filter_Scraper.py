@@ -222,7 +222,8 @@ def scrape_once(base_url: str, author_filter: str, from_page: int, to_page: int,
                 # - li.message (XenForo 1 pattern)
                 # - article.message (XenForo 2 pattern)
                 # - li[id^=post-] (another common pattern)
-                messages = soup.select("li.message, article.message, li[id^=post-]")
+                #messages = soup.select("li.message, article.message, li[id^=post-]")
+                messages = soup.select("li[id^=post-][data-author]")
 
                 for message in messages:
                     post_id = message.get("id") or ""
@@ -233,7 +234,7 @@ def scrape_once(base_url: str, author_filter: str, from_page: int, to_page: int,
                             continue
 
                     # Prefer data-author; fallback to user name link if needed
-                    author = (message.get("data-author") or "").strip()
+                    author = message.get("data-author").strip()
                     if not author:
                         a_user = message.select_one(".author a, a.username")
                         if a_user and a_user.get_text():
@@ -305,11 +306,11 @@ def start_scrape_background():
             to_page = max(parse_int(to_page_entry, default=from_page, minimum=from_page), from_page)
 
         # Reset scanned_posts if URL or author changed
-        if last_inputs["url"] != base_url or last_inputs["author"] != author:
-            with scanned_lock:
-                scanned_posts.clear()
-            last_inputs["url"] = base_url
-            last_inputs["author"] = author
+        #if last_inputs["url"] != base_url or last_inputs["author"] != author:
+           # with scanned_lock:
+          #      scanned_posts.clear()
+          #  last_inputs["url"] = base_url
+          #  last_inputs["author"] = author
 
         # Export settings
         export_to_csv = export_var.get()
