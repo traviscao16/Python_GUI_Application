@@ -11,7 +11,8 @@ import os
 from datetime import datetime
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
-
+import json
+from pathlib import Path
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # -------------------- App Setup --------------------
@@ -43,12 +44,63 @@ session.headers.update({"User-Agent": "Mozilla/5.0 (ScraperApp; +https://example
 
 # -------------------- UI --------------------
 tk.Label(app, text="Forum URL:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
-url_entry = ttk.Entry(app, width=90)
-url_entry.grid(row=0, column=1, columnspan=7, padx=5, pady=5, sticky="we")
 
-tk.Label(app, text="Author:").grid(row=1, column=0, padx=5, pady=5, sticky="w")
-author_entry = ttk.Entry(app, width=24)
-author_entry.grid(row=1, column=1, padx=5, pady=5, sticky="w")
+def add_url_to_history(*args):
+    url = url_combo.get().strip()
+    if url:
+        values = list(url_combo["values"])
+        # Only add if URL isn't already in the list
+        if url not in values:
+            values.append(url)
+            url_combo["values"] = values
+            save_history()
+
+url_combo = ttk.Combobox(app, width=90)
+url_combo.grid(row=0, column=1, columnspan=7, padx=5, pady=5, sticky="we")
+
+# Bind events to save URL
+url_combo.bind("<Return>", add_url_to_history)  # When user presses Enter
+url_combo.bind("<<ComboboxSelected>>", add_url_to_history)  # When user selects from dropdown
+
+# Author frame with list and controls
+author_frame = ttk.Frame(app)
+author_frame.grid(row=1, column=1, padx=5, pady=5, sticky="w")
+
+# Author list with checkboxes
+author_tree = ttk.Treeview(author_frame, columns=("author",), show="tree", height=6)
+author_tree.column("#0", width=30)  # Checkbox column
+author_tree.column("author", width=200)
+author_tree.grid(row=0, column=0, columnspan=2)
+
+# Scrollbar for author list
+author_scroll = ttk.Scrollbar(author_frame, orient="vertical", command=author_tree.yview)
+author_scroll.grid(row=0, column=2, sticky="ns")
+author_tree.configure(yscrollcommand=author_scroll.set)
+
+# Author input and add button
+author_entry = ttk.Entry(author_frame, width=24)
+author_entry.grid(row=1, column=0, pady=2)
+
+def add_author():
+    author = author_entry.get().strip()
+    if author:
+        author_tree.insert("", "end", text="", values=(author,))
+        author_entry.delete(0, "end")
+        save_history()
+
+def toggle_check(event):
+    item = author_tree.identify_row(event.y)
+    if item:
+        if author_tree.item(item, "text") == "✓":
+            author_tree.item(item, text="")
+        else:
+            author_tree.item(item, text="✓")
+
+add_button = ttk.Button(author_frame, text="Add", command=add_author)
+add_button.grid(row=1, column=1, pady=2)
+
+# Bind checkbox toggle
+author_tree.bind("<Button-1>", toggle_check)
 
 tk.Label(app, text="From Page:").grid(row=1, column=2, padx=5, pady=5, sticky="w")
 from_page_entry = ttk.Entry(app, width=7)
@@ -63,25 +115,14 @@ interval_entry = ttk.Entry(app, width=10)
 interval_entry.insert(0, "60")
 interval_entry.grid(row=1, column=7, padx=5, pady=5, sticky="w")
 
-# Export controls
-export_var = tk.BooleanVar(value=False)
-export_check = ttk.Checkbutton(app, text="Export to CSV", variable=export_var)
-export_check.grid(row=2, column=0, padx=5, pady=5, sticky="w")
-
-csv_path_entry = ttk.Entry(app, width=70)
-csv_path_entry.grid(row=2, column=1, columnspan=5, padx=5, pady=5, sticky="we")
-
-def browse_csv():
-    path = filedialog.asksaveasfilename(
-        defaultextension=".csv",
-        filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
-    )
-    if path:
-        csv_path_entry.delete(0, "end")
-        csv_path_entry.insert(0, path)
-
-browse_btn = ttk.Button(app, text="Browse…", command=browse_csv)
-browse_btn.grid(row=2, column=6, padx=5, pady=5, sticky="w")
+# Remember posts option
+remember_posts_var = tk.BooleanVar(value=True)
+remember_posts_check = ttk.Checkbutton(
+    app, 
+    text="Skip previously seen posts", 
+    variable=remember_posts_var
+)
+remember_posts_check.grid(row=3, column=4, padx=5, pady=5, sticky="w")
 
 # Buttons
 def start_scan_clicked():
@@ -175,43 +216,64 @@ def update_progress(done_pages: int, total_pages: int):
     progress_var.set(done_pages)
     progress_label_var.set(f"Progress: {done_pages}/{total_pages}")
 
-def ensure_csv_header(csv_path: str):
-    header = ["run_time", "base_url", "page", "page_url", "post_id", "author", "content"]
-    need_header = not os.path.exists(csv_path) or os.path.getsize(csv_path) == 0
-    if need_header:
-        with open(csv_path, "a", newline="", encoding="utf-8-sig") as f:
-            writer = csv.writer(f)
-            writer.writerow(header)
+def get_history_file():
+    app_dir = Path.home() / ".forum_scraper"
+    app_dir.mkdir(exist_ok=True)
+    return app_dir / "history.json"
 
+def load_history():
+    try:
+        history_file = get_history_file()
+        if history_file.exists():
+            with open(history_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return data.get("urls", []), data.get("authors", [])
+    except Exception as e:
+        print(f"Error loading history: {e}")
+    return [], []
+
+def save_history():
+    try:
+        urls = list(url_combo["values"])
+        authors = []
+        for item in author_tree.get_children():
+            author = author_tree.item(item, "values")[0]
+            authors.append(author)
+        
+        history_file = get_history_file()
+        with open(history_file, "w", encoding="utf-8") as f:
+            json.dump({
+                "urls": urls,
+                "authors": authors
+            }, f, indent=2)
+    except Exception as e:
+        print(f"Error saving history: {e}")
 
 # -------------------- Scraping --------------------
-def scrape_once(base_url: str, author_filter: str, from_page: int, to_page: int,
-                export_to_csv: bool, csv_path: str) -> str:
+def scrape_once(base_url: str, author_filter: str, from_page: int, to_page: int) -> str:
     """
     Runs in a background thread. Returns a string to be appended to the UI.
-    Also appends to CSV if enabled.
     """
     results = []
     author_filter_norm = author_filter.strip().lower()
     total_pages = max(0, to_page - from_page + 1)
     run_time_iso = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    csv_writer = None
-    csv_file = None
-    if export_to_csv and csv_path:
-        ensure_csv_header(csv_path)
-        csv_file = open(csv_path, "a", newline="", encoding="utf-8-sig")
-        csv_writer = csv.writer(csv_file)
-
     pages_done = 0
 
     try:
+        # Get selected authors
+        selected_authors = set()
+        for item in author_tree.get_children():
+            if author_tree.item(item, "text") == "✓":  # If checked
+                selected_authors.add(author_tree.item(item, "values")[0].lower())
+
         for page in range(from_page, to_page + 1):
             if stop_event.is_set():
                 break
 
             page_url = f"{base_url}/page-{page}"
-            results.append(f"\n{'-'*90}\nPage {page}: {page_url}\n")
+            results.append(f"\n{'-'*90}\nPage {page}\n")
 
             try:
                 resp = session.get(page_url, timeout=(5, 20), verify=False)
@@ -230,8 +292,12 @@ def scrape_once(base_url: str, author_filter: str, from_page: int, to_page: int,
                     if not post_id:
                         continue
                     with scanned_lock:
-                        if post_id in scanned_posts:
+                        if remember_posts_var.get() and post_id in scanned_posts:
                             continue
+
+                    # Extract date
+                    date_elem = message.select_one(".datePermalink")
+                    post_date = date_elem.get_text(strip=True) if date_elem else "Unknown date"
 
                     # Prefer data-author; fallback to user name link if needed
                     author = message.get("data-author").strip()
@@ -241,7 +307,7 @@ def scrape_once(base_url: str, author_filter: str, from_page: int, to_page: int,
                             author = a_user.get_text(strip=True)
 
                     # Case-insensitive author match
-                    if author_filter_norm and author.lower() != author_filter_norm:
+                    if selected_authors and author.lower() not in selected_authors:
                         continue
 
                     # Content block fallbacks for f319-like forums
@@ -255,13 +321,10 @@ def scrape_once(base_url: str, author_filter: str, from_page: int, to_page: int,
                         continue
 
                     content = content_block.get_text(separator="\n", strip=True)
-                    results.append(f"\nAuthor: {author}\n{content}\n")
+                    results.append(f"\nAuthor: {author}\nDate: {post_date}\n{content}\n")
 
                     with scanned_lock:
                         scanned_posts.add(post_id)
-
-                    if csv_writer:
-                        csv_writer.writerow([run_time_iso, base_url, page, page_url, post_id, author, content])
 
             except requests.HTTPError as e:
                 results.append(f"HTTP error on page {page}: {e}\n")
@@ -274,8 +337,7 @@ def scrape_once(base_url: str, author_filter: str, from_page: int, to_page: int,
             app.after(0, lambda d=pages_done, t=total_pages: update_progress(d, t))
             time.sleep(0.25)  # Be polite to the server
     finally:
-        if csv_file:
-            csv_file.close()
+        pass  # No CSV file to close
 
     return "".join(results)
 
@@ -288,7 +350,7 @@ def start_scrape_background():
         scrape_in_progress = True
 
     try:
-        base_url_raw = url_entry.get().strip()
+        base_url_raw = url_combo.get().strip()
         if not base_url_raw:
             messagebox.showerror("Input error", "Please enter a Forum URL.")
             with scrape_lock:
@@ -296,7 +358,19 @@ def start_scrape_background():
             return
         base_url = normalize_base_url(base_url_raw)
 
-        author = author_entry.get().strip()
+        # Get selected authors instead of single author
+        selected_authors = []
+        for item in author_tree.get_children():
+            if author_tree.item(item, "text") == "✓":
+                selected_authors.append(author_tree.item(item, "values")[0])
+        
+        if not selected_authors:
+            messagebox.showwarning("Warning", "No authors selected")
+            with scrape_lock:
+                scrape_in_progress = False
+            return
+
+        author = ",".join(selected_authors)  # Join for cache key
         from_page = parse_int(from_page_entry, default=1, minimum=1)
 
         to_page_str = to_page_entry.get().strip()
@@ -306,27 +380,15 @@ def start_scrape_background():
             to_page = max(parse_int(to_page_entry, default=from_page, minimum=from_page), from_page)
 
         # Reset scanned_posts if URL or author changed
-        #if last_inputs["url"] != base_url or last_inputs["author"] != author:
-           # with scanned_lock:
-          #      scanned_posts.clear()
-          #  last_inputs["url"] = base_url
-          #  last_inputs["author"] = author
+        if last_inputs["url"] != base_url or last_inputs["author"] != author:
+            with scanned_lock:
+                scanned_posts.clear()
+            last_inputs["url"] = base_url
+            last_inputs["author"] = author
 
         # Export settings
-        export_to_csv = export_var.get()
-        csv_path = csv_path_entry.get().strip()
-        if export_to_csv and not csv_path:
-            path = filedialog.asksaveasfilename(
-                defaultextension=".csv",
-                filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
-            )
-            if not path:
-                export_to_csv = False
-            else:
-                csv_path = path
-                csv_path_entry.delete(0, "end")
-                csv_path_entry.insert(0, path)
-
+        export_to_csv = False  # Disabled export by default
+        csv_path = ""  # No default path
         total_pages = max(0, to_page - from_page + 1)
         reset_progress(total_pages)
         set_status("Scraping...")
@@ -336,7 +398,7 @@ def start_scrape_background():
         def worker():
             global scrape_in_progress  # <-- IMPORTANT (fix SyntaxError + correct scope)
             try:
-                result_text = scrape_once(base_url, author, from_page, to_page, export_to_csv, csv_path)
+                result_text = scrape_once(base_url, author, from_page, to_page)
                 app.after(0, lambda: append_output(result_text))
             finally:
                 elapsed = time.time() - start_time
@@ -385,5 +447,85 @@ def stop_auto():
 auto_start_button.configure(command=start_auto)
 auto_stop_button.configure(command=stop_auto)
 
-# -------------------- Mainloop --------------------
+# -------------------- Save to CSV --------------------
+def save_to_csv():
+    # Get current content from output_text
+    content = output_text.get("1.0", "end").strip()
+    if not content:
+        messagebox.showinfo("Info", "No content to save")
+        return
+        
+    # Ask for save location
+    file_path = filedialog.asksaveasfilename(
+        defaultextension=".csv",
+        filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
+    )
+    if not file_path:
+        return
+        
+    try:
+        with open(file_path, "w", newline="", encoding="utf-8-sig") as f:
+            writer = csv.writer(f)
+            # Write header
+            writer.writerow(["run_time", "author", "post_date", "content"])
+            
+            # Parse and write content
+            current_author = ""
+            current_date = ""
+            current_content = []
+            
+            for line in content.split("\n"):
+                if line.startswith("Author: "):
+                    # Write previous entry if exists
+                    if current_author and current_content:
+                        writer.writerow([
+                            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            current_author,
+                            current_date,
+                            "\n".join(current_content)
+                        ])
+                    # Start new entry
+                    current_author = line.replace("Author: ", "").strip()
+                    current_content = []
+                elif line.startswith("Date: "):
+                    current_date = line.replace("Date: ", "").strip()
+                elif line and not line.startswith("-" * 90):
+                    current_content.append(line)
+            
+            # Write final entry
+            if current_author and current_content:
+                writer.writerow([
+                    datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    current_author,
+                    current_date,
+                    "\n".join(current_content)
+                ])
+                
+        set_status(f"Saved to CSV: {file_path}")
+    except Exception as e:
+        messagebox.showerror("Error", f"Failed to save CSV: {e}")
+
+save_csv_btn = ttk.Button(app, text="Save to CSV", command=save_to_csv)
+save_csv_btn.grid(row=2, column=5, padx=5, pady=5, sticky="e")
+
+# Load saved history
+saved_urls, saved_authors = load_history()
+if saved_urls:
+    url_combo["values"] = saved_urls
+    url_combo.set(saved_urls[0])  # Set the most recently added URL
+    
+for author in saved_authors:
+    author_tree.insert("", "end", text="", values=(author,))
+
+# Remove selected authors
+def remove_selected_authors():
+    selected = author_tree.selection()
+    for item in selected:
+        author_tree.delete(item)
+    save_history()
+
+remove_button = ttk.Button(author_frame, text="Remove", command=remove_selected_authors)
+remove_button.grid(row=1, column=2, pady=2)
+
+# Start main loop
 app.mainloop()
