@@ -18,7 +18,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 # -------------------- App Setup --------------------
 app = tk.Tk()
 app.title("Author Filter Forum Scraper")
-app.geometry("1120x780")
+app.geometry("1200x780")
 
 # State
 scanned_posts = set()
@@ -61,6 +61,45 @@ url_combo.grid(row=0, column=1, columnspan=7, padx=5, pady=5, sticky="we")
 # Bind events to save URL
 url_combo.bind("<Return>", add_url_to_history)  # When user presses Enter
 url_combo.bind("<<ComboboxSelected>>", add_url_to_history)  # When user selects from dropdown
+
+# Add after the url_combo section and before the author frame:
+def check_page_count():
+    url = url_combo.get().strip()
+    if not url:
+        messagebox.showerror("Error", "Please enter a Forum URL")
+        return
+        
+    base_url = normalize_base_url(url)
+    try:
+        set_status("Checking page count...")
+        progress_label_var.set("Checking forum pages...")  # Add this
+        progress_var.set(0)  # Reset progress bar
+        
+        last_page = get_latest_page(base_url)
+        if last_page > 0:
+            messagebox.showinfo("Page Count", f"This forum thread has {last_page} pages (from 1 to {last_page})")
+            # Automatically fill the from_page and to_page entries
+            from_page_entry.delete(0, "end")
+            from_page_entry.insert(0, "1")
+            to_page_entry.delete(0, "end")
+            to_page_entry.insert(0, str(last_page))
+            
+            # Update progress label with page info
+            progress_label_var.set(f"Total pages: {last_page}")
+            progress_var.set(100)  # Show full progress after successful check
+        else:
+            messagebox.showwarning("Warning", "Could not determine page count")
+            progress_label_var.set("Page count unknown")
+            progress_var.set(0)
+        set_status("Ready.")
+    except Exception as e:
+        messagebox.showerror("Error", f"Failed to check page count: {e}")
+        set_status("Error checking page count.")
+        progress_label_var.set("Error checking pages")
+        progress_var.set(0)
+
+get_pages_btn = ttk.Button(app, text="Get Pages", command=check_page_count)
+get_pages_btn.grid(row=0, column=8, padx=5, pady=5, sticky="w")
 
 # Author frame with list and controls
 author_frame = ttk.Frame(app)
@@ -116,7 +155,7 @@ interval_entry.insert(0, "60")
 interval_entry.grid(row=1, column=7, padx=5, pady=5, sticky="w")
 
 # Remember posts option
-remember_posts_var = tk.BooleanVar(value=True)
+remember_posts_var = tk.BooleanVar(value=False)
 remember_posts_check = ttk.Checkbutton(
     app, 
     text="Skip previously seen posts", 
