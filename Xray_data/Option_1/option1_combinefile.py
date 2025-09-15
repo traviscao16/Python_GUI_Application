@@ -18,6 +18,8 @@ CONFIG = {
     # Source paths
     'source_1': [r'\\10.240.39.111\mips\Lot-Export', r'\\10.240.39.195\mips\Lot-Export'],
     'source_2': [r'\\10.240.39.111\mips\Void Result', r'\\10.240.39.195\mips\Void Result'],
+    #'source_2': [r'\\10.240.39.111\mips\Void Result',r'\\10.240.39.111\mips\Void Result\New folder', r'\\10.240.39.195\mips\Void Result',r'\\10.240.39.195\mips\Void Result\New folder'],
+
     #'source_1': [r'\\10.240.39.195\mips\Lot-Export'],
     #'source_2': [r'\\10.240.39.195\mips\Void Result'],
     
@@ -29,11 +31,11 @@ CONFIG = {
     # Processing parameters
     'max_workers': 8,
     'batch_size': 500,
-    'hours_lookback': 168,  # Only process files modified in last 24 hours for first run
-    'priority_hours': 168,   # Process files from last 2 hours first
+    'hours_lookback': 60,  # Only process files modified in last 24 hours for first run
+    'priority_hours': 60,   # Process files from last 2 hours first
     
     # CSV settings
-    'csv_pattern': 'XRAY_SIC_*.csv',
+    'csv_pattern': ['XRAY_SIC_*.csv','B1T_SIC*.csv'],
     'standard_header': [
         'BoardBarcode', 'ModuleIndex', 'JointType', 'Pin', 'TotalVoidRatio',
         'LargestVoidRatio', 'SpreadX', 'SpreadY', 'GVMean', 'DefectCode',
@@ -143,7 +145,7 @@ class SmartFileScanner:
             
             try:
                 for filename in os.listdir(source_dir):
-                    if not fnmatch.fnmatch(filename, file_pattern):
+                    if not any(fnmatch.fnmatch(filename, pattern) for pattern in file_pattern):
                         continue
                     
                     file_path = os.path.join(source_dir, filename)

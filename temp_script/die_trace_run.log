@@ -1,0 +1,94 @@
+18:43:17.017 INFO | Start import → SQLite
+18:43:17.019 INFO | Input:  C:\Users\zbrzyy\Desktop\Logcheck\ceramic crack\Lot_Traceback\lotfrom21-31.csv (9.6 GB)
+18:43:17.034 INFO | Output: C:\Users\zbrzyy\Desktop\Logcheck\ceramic crack\Lot_Traceback\lotfrom21-31.sqlite
+18:43:17.034 INFO | Table:  lot_traceback
+18:43:17.035 INFO | Encoding=utf-16, engine=python, sep=',', CHUNK_SIZE=200,000
+18:43:17.046 INFO | SQLite schema ready.
+18:43:22.075 ERROR | ERROR during import
+Traceback (most recent call last):
+  File "c:\Users\zbrzyy\source\repos\traviscao16\Python_GUI_Application\temp_script\die_trace.py", line 133, in main
+    cur.executemany(
+sqlite3.ProgrammingError: Error binding parameter 2: type 'NAType' is not supported
+18:46:23.477 INFO | Start import → SQLite
+18:46:23.478 INFO | Input:  C:\Users\zbrzyy\Desktop\Logcheck\ceramic crack\Lot_Traceback\lotfrom21-31.csv (9.6 GB)
+18:46:23.478 INFO | Output: C:\Users\zbrzyy\Desktop\Logcheck\ceramic crack\Lot_Traceback\lotfrom21-31.sqlite
+18:46:23.478 INFO | Table:  lot_traceback
+18:46:23.479 INFO | Encoding=utf-16, engine=python, sep=',', CHUNK_SIZE=200,000
+18:46:23.480 INFO | Remove existing SQLite file (overwrite).
+18:46:23.495 INFO | SQLite schema ready.
+18:46:30.289 INFO | Chunk     1: read=200,000 → after_dedup=100,030 | inserted=100,030 | rate=36,465 rows/s | DB=27.5 MB | 2.74s
+18:46:36.373 INFO | Chunk     2: read=200,000 → after_dedup=100,051 | inserted=99,993 | rate=33,156 rows/s | DB=55.1 MB | 3.02s
+18:46:43.479 INFO | Chunk     3: read=200,000 → after_dedup=100,068 | inserted=100,025 | rate=25,072 rows/s | DB=82.7 MB | 3.99s
+18:46:49.346 INFO | Chunk     4: read=200,000 → after_dedup=100,060 | inserted=99,969 | rate=36,493 rows/s | DB=110.1 MB | 2.74s
+18:46:53.331 INFO | Chunk     5: read=200,000 → after_dedup=100,046 | inserted=100,021 | rate=63,092 rows/s | DB=137.9 MB | 1.59s
+18:46:58.269 INFO | Chunk     6: read=200,000 → after_dedup=100,059 | inserted=99,993 | rate=50,221 rows/s | DB=165.4 MB | 1.99s
+18:47:03.447 INFO | Chunk     7: read=200,000 → after_dedup=100,048 | inserted=99,997 | rate=38,462 rows/s | DB=192.8 MB | 2.60s
+18:47:11.337 INFO | Chunk     8: read=200,000 → after_dedup=100,095 | inserted=100,051 | rate=41,462 rows/s | DB=220.5 MB | 2.41s
+18:47:16.410 INFO | Chunk     9: read=200,000 → after_dedup=100,116 | inserted=99,971 | rate=54,765 rows/s | DB=248.1 MB | 1.83s
+18:47:21.900 INFO | Chunk    10: read=200,000 → after_dedup=100,074 | inserted=99,988 | rate=40,609 rows/s | DB=275.7 MB | 2.46s
+18:47:31.586 INFO | Chunk    11: read=200,000 → after_dedup=100,056 | inserted=99,994 | rate=21,041 rows/s | DB=303.3 MB | 4.76s
+18:47:38.312 INFO | Chunk    12: read=200,000 → after_dedup=100,069 | inserted=100,020 | rate=42,849 rows/s | DB=331.0 MB | 2.34s
+18:47:44.799 INFO | Chunk    13: read=200,000 → after_dedup=100,051 | inserted=99,963 | rate=40,375 rows/s | DB=358.5 MB | 2.48s
+18:47:50.399 INFO | Chunk    14: read=200,000 → after_dedup=100,047 | inserted=100,035 | rate=49,653 rows/s | DB=385.9 MB | 2.01s
+18:47:57.815 INFO | Chunk    15: read=200,000 → after_dedup=100,043 | inserted=99,961 | rate=30,411 rows/s | DB=413.4 MB | 3.29s
+18:48:04.053 INFO | Chunk    16: read=200,000 → after_dedup=100,067 | inserted=100,063 | rate=40,571 rows/s | DB=441.0 MB | 2.47s
+18:48:09.163 INFO | Chunk    17: read=200,000 → after_dedup=100,110 | inserted=99,981 | rate=47,378 rows/s | DB=468.6 MB | 2.11s
+18:48:13.825 INFO | Chunk    18: read=200,000 → after_dedup=100,052 | inserted=99,961 | rate=53,388 rows/s | DB=496.1 MB | 1.87s
+18:48:19.379 INFO | Chunk    19: read=200,000 → after_dedup=100,068 | inserted=100,060 | rate=35,306 rows/s | DB=523.6 MB | 2.83s
+18:48:25.593 INFO | Chunk    20: read=200,000 → after_dedup=100,103 | inserted=99,977 | rate=56,049 rows/s | DB=551.2 MB | 1.79s
+18:48:29.919 INFO | Chunk    21: read=200,000 → after_dedup=100,080 | inserted=100,002 | rate=60,475 rows/s | DB=578.6 MB | 1.65s
+18:48:38.776 INFO | Chunk    22: read=200,000 → after_dedup=100,045 | inserted=99,963 | rate=34,933 rows/s | DB=606.4 MB | 2.86s
+18:48:48.531 INFO | Chunk    23: read=200,000 → after_dedup=100,036 | inserted=100,032 | rate=28,512 rows/s | DB=634.1 MB | 3.51s
+18:48:55.072 INFO | Chunk    24: read=200,000 → after_dedup=100,107 | inserted=100,040 | rate=40,010 rows/s | DB=661.8 MB | 2.50s
+18:49:02.272 INFO | Chunk    25: read=200,000 → after_dedup=100,116 | inserted=99,970 | rate=35,142 rows/s | DB=689.6 MB | 2.85s
+18:49:11.694 INFO | Chunk    26: read=200,000 → after_dedup=100,085 | inserted=100,003 | rate=33,941 rows/s | DB=717.3 MB | 2.95s
+18:49:18.357 INFO | Chunk    27: read=200,000 → after_dedup=100,066 | inserted=99,982 | rate=40,408 rows/s | DB=744.9 MB | 2.48s
+18:49:23.170 INFO | Chunk    28: read=200,000 → after_dedup=100,093 | inserted=100,047 | rate=65,167 rows/s | DB=772.6 MB | 1.54s
+18:49:27.707 INFO | Chunk    29: read=200,000 → after_dedup=100,087 | inserted=99,949 | rate=46,965 rows/s | DB=800.4 MB | 2.13s
+18:49:36.361 INFO | Chunk    30: read=200,000 → after_dedup=100,059 | inserted=100,024 | rate=22,383 rows/s | DB=828.2 MB | 4.47s
+18:49:43.496 INFO | Chunk    31: read=200,000 → after_dedup=100,153 | inserted=100,073 | rate=38,965 rows/s | DB=855.8 MB | 2.57s
+18:49:51.423 INFO | Chunk    32: read=200,000 → after_dedup=100,115 | inserted=99,891 | rate=32,398 rows/s | DB=883.6 MB | 3.09s
+18:49:59.483 INFO | Chunk    33: read=200,000 → after_dedup=100,043 | inserted=100,038 | rate=39,952 rows/s | DB=911.2 MB | 2.50s
+18:50:04.155 INFO | Chunk    34: read=200,000 → after_dedup=100,158 | inserted=100,079 | rate=49,807 rows/s | DB=938.9 MB | 2.01s
+18:50:08.444 INFO | Chunk    35: read=200,000 → after_dedup=100,256 | inserted=99,991 | rate=66,764 rows/s | DB=966.7 MB | 1.50s
+18:50:14.261 INFO | Chunk    36: read=200,000 → after_dedup=100,136 | inserted=99,891 | rate=27,859 rows/s | DB=994.1 MB | 3.59s
+18:50:17.923 INFO | Chunk    37: read=200,000 → after_dedup=100,143 | inserted=100,117 | rate=63,535 rows/s | DB=1,021.9 MB | 1.58s
+18:50:22.553 INFO | Chunk    38: read=200,000 → after_dedup=100,196 | inserted=99,938 | rate=45,958 rows/s | DB=1.0 GB | 2.18s
+18:50:27.705 INFO | Chunk    39: read=200,000 → after_dedup=100,205 | inserted=100,071 | rate=50,881 rows/s | DB=1.1 GB | 1.97s
+18:50:33.312 INFO | Chunk    40: read=200,000 → after_dedup=100,214 | inserted=99,939 | rate=46,968 rows/s | DB=1.1 GB | 2.13s
+18:50:38.772 INFO | Chunk    41: read=200,000 → after_dedup=100,156 | inserted=100,003 | rate=45,210 rows/s | DB=1.1 GB | 2.22s
+18:50:44.663 INFO | Chunk    42: read=200,000 → after_dedup=100,107 | inserted=99,950 | rate=47,645 rows/s | DB=1.1 GB | 2.10s
+18:50:48.357 INFO | Chunk    43: read=200,000 → after_dedup=100,079 | inserted=100,022 | rate=63,250 rows/s | DB=1.2 GB | 1.58s
+18:50:52.004 INFO | Chunk    44: read=200,000 → after_dedup=100,171 | inserted=100,070 | rate=72,599 rows/s | DB=1.2 GB | 1.38s
+18:50:55.588 INFO | Chunk    45: read=200,000 → after_dedup=100,150 | inserted=99,909 | rate=70,174 rows/s | DB=1.2 GB | 1.43s
+18:50:59.312 INFO | Chunk    46: read=200,000 → after_dedup=100,101 | inserted=100,043 | rate=70,799 rows/s | DB=1.2 GB | 1.41s
+18:51:03.058 INFO | Chunk    47: read=200,000 → after_dedup=100,153 | inserted=100,010 | rate=66,788 rows/s | DB=1.3 GB | 1.50s
+18:51:06.719 INFO | Chunk    48: read=200,000 → after_dedup=100,092 | inserted=99,931 | rate=70,942 rows/s | DB=1.3 GB | 1.41s
+18:51:10.379 INFO | Chunk    49: read=200,000 → after_dedup=100,028 | inserted=100,008 | rate=69,408 rows/s | DB=1.3 GB | 1.44s
+18:51:14.339 INFO | Chunk    50: read=200,000 → after_dedup=100,070 | inserted=100,035 | rate=56,314 rows/s | DB=1.3 GB | 1.78s
+18:51:17.802 INFO | Chunk    51: read=200,000 → after_dedup=100,074 | inserted=99,970 | rate=72,879 rows/s | DB=1.4 GB | 1.37s
+18:51:21.335 INFO | Chunk    52: read=200,000 → after_dedup=100,089 | inserted=100,045 | rate=70,673 rows/s | DB=1.4 GB | 1.42s
+18:51:24.860 INFO | Chunk    53: read=200,000 → after_dedup=100,176 | inserted=100,043 | rate=66,747 rows/s | DB=1.4 GB | 1.50s
+18:51:29.153 INFO | Chunk    54: read=200,000 → after_dedup=100,196 | inserted=99,977 | rate=45,085 rows/s | DB=1.4 GB | 2.22s
+18:51:32.170 INFO | Chunk    55: read=161,165 → after_dedup=80,669 | inserted=80,496 | rate=55,864 rows/s | DB=1.5 GB | 1.44s
+18:51:38.666 INFO | ANALYZE & PRAGMA optimize done.
+18:51:38.751 INFO | Done. Total_read=10,961,165, Total_inserted=5,480,605, Wall_time=315.3s
+18:51:38.751 INFO | SQLite DB at: C:\Users\zbrzyy\Desktop\Logcheck\ceramic crack\Lot_Traceback\lotfrom21-31.sqlite
+16:33:32.743 INFO | Dọn dữ liệu trùng hiện có trong 'lot_traceback' (có thể mất thời gian nếu bảng lớn)...
+16:34:10.205 INFO | Dọn trùng xong: đã xoá 0 dòng.
+16:34:10.206 INFO | Tạo UNIQUE INDEX 'ux_lot_traceback_dedup' (nếu chưa có) để chống trùng...
+16:34:10.259 INFO | Bắt đầu APPEND → SQLite
+16:34:10.261 INFO | Input:  C:\Users\zbrzyy\Desktop\Logcheck\ceramic crack\Lot_Traceback\Die Trace_ww31-34.csv (2.6 GB)
+16:34:10.262 INFO | Output: C:\Users\zbrzyy\Desktop\Logcheck\ceramic crack\Lot_Traceback\lotfrom21-31.sqlite
+16:34:10.262 INFO | Table:  lot_traceback
+16:34:10.263 INFO | Encoding=utf-16, engine=python, sep=',', CHUNK_SIZE=200,000
+16:34:16.975 INFO | Chunk     1: read=200,000 → after_dedup=100,235 | inserted=96,135 | rate=70,156 rows/s | DB=1.5 GB | 1.43s
+16:34:27.824 INFO | Chunk     2: read=200,000 → after_dedup=100,378 | inserted=94,056 | rate=56,312 rows/s | DB=1.5 GB | 1.78s
+16:34:36.381 INFO | Chunk     3: read=200,000 → after_dedup=100,286 | inserted=93,764 | rate=51,964 rows/s | DB=1.5 GB | 1.93s
+16:34:45.192 INFO | Chunk     4: read=200,000 → after_dedup=100,421 | inserted=90,836 | rate=45,310 rows/s | DB=1.5 GB | 2.22s
+16:34:51.639 INFO | Chunk     5: read=200,000 → after_dedup=100,584 | inserted=98,720 | rate=78,322 rows/s | DB=1.5 GB | 1.28s
+16:34:59.243 INFO | Chunk     6: read=200,000 → after_dedup=100,374 | inserted=99,563 | rate=75,749 rows/s | DB=1.5 GB | 1.33s
+16:35:05.177 INFO | Chunk     7: read=200,000 → after_dedup=100,176 | inserted=98,624 | rate=75,990 rows/s | DB=1.5 GB | 1.32s
+16:35:05.896 INFO | Chunk     8: read=23,046 → after_dedup=11,631 | inserted=11,415 | rate=56,940 rows/s | DB=1.5 GB | 0.20s
+16:35:38.030 INFO | Hoàn tất import. Total_read=1,423,046, Total_inserted=683,113
+16:35:38.071 INFO | ALL DONE trong 125.3s. SQLite ở: C:\Users\zbrzyy\Desktop\Logcheck\ceramic crack\Lot_Traceback\lotfrom21-31.sqlite

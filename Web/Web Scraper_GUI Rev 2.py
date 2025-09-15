@@ -68,6 +68,7 @@ def get_post_ids_from_page(url):
     except Exception:
         return set()
 
+
 def scrape_page(page):
     global current_page, latest_page, last_known_post_ids
     base_url = url_entry.get().strip().rstrip("/")
@@ -92,11 +93,15 @@ def scrape_page(page):
         response = requests.get(page_url, headers={"User-Agent": "Mozilla/5.0"}, verify=False)
         soup = BeautifulSoup(response.content, "html.parser")
 
+        author_filter = author_entry.get().strip()
+
         for message in soup.find_all("li", class_="message"):
             author = message.get("data-author", "").strip()
+            if author_filter and author != author_filter:
+                continue
+
             time_tag = message.find("a", class_="datePermalink")
             post_time = time_tag.get_text(strip=True) if time_tag else ""
-
             quote_author = ""
             quote_content = ""
             quote_block = message.find("div", class_="bbCodeBlock bbCodeQuote")
@@ -127,6 +132,7 @@ def scrape_page(page):
 
     output_text.insert("end", "\n".join(all_results))
     last_known_post_ids = get_post_ids_from_page(page_url)
+
 
 def refresh(event=None):
     scrape_page(current_page)
@@ -287,6 +293,10 @@ ttk.Label(url_input_frame, text="Input URL:").grid(row=0, column=1, sticky="w", 
 url_entry = ttk.Entry(url_input_frame, width=80)
 url_entry.grid(row=0, column=2, columnspan=4, sticky="w", padx=5, pady=5)
 
+
+
+
+
 # Blank row to prevent overlap
 #ttk.Label(app, text="").grid(row=2, column=0, columnspan=7, pady=5)
 
@@ -302,6 +312,14 @@ noti_label = ttk.Label(app, text="", bootstyle=INFO)
 noti_label.grid(row=1, column=5, sticky="w", padx=5)
 post_noti_label = ttk.Label(app, text="", bootstyle=INFO)
 post_noti_label.grid(row=1, column=6, sticky="w", padx=5)
+
+#🔍 Author filter input
+
+
+author_label = ttk.Label(app, text="Author:")
+author_label.grid(row=1, column=7, sticky="w", padx=5)
+author_entry = ttk.Entry(app, width=20)
+author_entry.grid(row=1, column=8, sticky="w", padx=5)
 
 # Navigation buttons
 nav_frame = ttk.Frame(app)
